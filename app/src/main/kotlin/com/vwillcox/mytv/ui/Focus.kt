@@ -9,6 +9,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
@@ -29,13 +31,22 @@ object NoScrollSpec : BringIntoViewSpec {
     override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float = 0f
 }
 
+/**
+ * Up out of a screen's top row goes to the open tab, wherever the tabs are. It belongs on the row's group: focus
+ * moves from the cards inside, which don't look at their group's `up`, but leaving the group always passes here.
+ */
+fun Modifier.upToTab(ui: HomeUi) = focusProperties {
+    onExit = { if (requestedFocusDirection == FocusDirection.Up) runCatching { ui.selectedTab.requestFocus() } }
+}
+
 fun KeyEvent.isSelect() = key == Key.DirectionCenter || key == Key.Enter || key == Key.NumPadEnter || key == Key.ButtonA
 
 private class Press { var down = false; var long = false }
 
 /**
  * Focusable and chosen with OK. Holding OK calls [onLongClick] instead, once. A press only counts if it started
- * here, so the OK that closes a panel doesn't also choose whatever gets focus after it.
+ * here, so the OK that closes a panel doesn't also choose whatever gets focus after it. Either makes the skin's
+ * sound for choosing, if it has one.
  */
 fun Modifier.tvClickable(
     interaction: MutableInteractionSource? = null,
@@ -43,16 +54,17 @@ fun Modifier.tvClickable(
     onClick: () -> Unit,
 ): Modifier = composed {
     val press = remember { Press() }
+    val sounds = LocalSounds.current
     onKeyEvent { e ->
         if (!e.isSelect()) return@onKeyEvent false
         when (e.type) {
             KeyEventType.KeyDown -> {
                 if (e.nativeKeyEvent.repeatCount == 0) { press.down = true; press.long = false }
-                else if (press.down && !press.long && onLongClick != null) { press.long = true; onLongClick() }
+                else if (press.down && !press.long && onLongClick != null) { press.long = true; sounds.select(); onLongClick() }
                 true
             }
             KeyEventType.KeyUp -> {
-                if (press.down && !press.long) onClick()
+                if (press.down && !press.long) { sounds.select(); onClick() }
                 press.down = false
                 true
             }

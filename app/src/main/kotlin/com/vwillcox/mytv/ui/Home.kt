@@ -10,6 +10,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -34,6 +35,7 @@ import androidx.compose.material.icons.rounded.Wallpaper
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -46,7 +48,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -62,6 +67,8 @@ import com.vwillcox.mytv.data.MediaCard
 import com.vwillcox.mytv.data.Open
 import com.vwillcox.mytv.data.Tab
 import com.vwillcox.mytv.data.TvApp
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.delay
 import java.io.File
 import java.text.SimpleDateFormat
@@ -102,7 +109,26 @@ class HomeUi {
     fun closePanel() { if (panels.isNotEmpty()) panels.removeAt(panels.lastIndex) }
 }
 
-val TopBarHeight = 96.dp
+/**
+ * Google TV's frame: the background, the screen on show over it, and the bar of tabs floating across the top, whose
+ * glass blurs the other two.
+ */
+@Composable
+internal fun GoogleFrame(f: HomeFrame) {
+    val ui = f.ui
+    val glass = rememberHazeState()
+    Box(Modifier.fillMaxSize()) {
+        BackgroundLayer(f.look, ui.focusedArt, Modifier.hazeSource(glass, zIndex = 0f))
+        Box(Modifier.fillMaxSize().focusRequester(ui.main).focusRestorer().focusGroup()) {
+            f.content(Modifier.hazeSource(glass, zIndex = 1f))
+            if (ui.grid == null) {
+                Box(Modifier.focusProperties { down = ui.entry }.onFocusChanged { f.onNavFocus(it.hasFocus) }) {
+                    CompositionLocalProvider(LocalGlass provides glass) { TopBar(ui, f.avatar, f.userName, f.look, f.onTab) }
+                }
+            }
+        }
+    }
+}
 
 /** The bar across the top: who's watching, the tabs and the settings, each group a pill of frosted glass. */
 @Composable
@@ -211,7 +237,11 @@ private fun IconPill(icon: ImageVector, label: String, onClick: () -> Unit) {
 
 /** The page behind everything: the owner's choice of dark, a colour, a photo, or the focused title's artwork. */
 @Composable
-fun BackgroundLayer(look: Look, art: String?, modifier: Modifier = Modifier) {
+fun BackgroundLayer(look: Look, art: String?, modifier: Modifier = Modifier) = LocalSkin.current.Background(look, art, modifier)
+
+/** The owner's background as it is, on the skin's own darkness. */
+@Composable
+internal fun PlainBackground(look: Look, art: String?, modifier: Modifier) {
     val tones = LocalTones.current
     Box(modifier.fillMaxSize().background(tones.bg)) {
         when (look.background) {
@@ -231,9 +261,13 @@ fun BackgroundLayer(look: Look, art: String?, modifier: Modifier = Modifier) {
     }
 }
 
-/** The spotlight's picture, filling the screen behind the top of a tab and fading as the page scrolls. */
+/** The spotlight's picture behind the top of a tab, fading as the page scrolls. */
 @Composable
-fun HeroBackdrop(card: MediaCard?, scrolled: Float) {
+fun HeroBackdrop(card: MediaCard?, scrolled: Float) = LocalSkin.current.HeroBackdrop(card, scrolled)
+
+/** The spotlight's picture filling the screen, darkened for the words and rows over it. */
+@Composable
+internal fun GoogleHeroBackdrop(card: MediaCard?, scrolled: Float) {
     val tones = LocalTones.current
     Box(Modifier.fillMaxSize().graphicsLayer { alpha = (1f - scrolled * 1.6f).coerceIn(0f, 1f) }) {
         Crossfade(card?.backdrop, animationSpec = tween(700), label = "hero") { url ->
@@ -247,7 +281,11 @@ fun HeroBackdrop(card: MediaCard?, scrolled: Float) {
 
 /** The words over the banner: where it's from, the title (as its logo when there is one), and a line about it. */
 @Composable
-fun HeroInfo(card: MediaCard?, emptyTitle: String, emptyHint: String, modifier: Modifier = Modifier) {
+fun HeroInfo(card: MediaCard?, emptyTitle: String, emptyHint: String, modifier: Modifier = Modifier) =
+    LocalSkin.current.HeroInfo(card, emptyTitle, emptyHint, modifier)
+
+@Composable
+internal fun GoogleHeroInfo(card: MediaCard?, emptyTitle: String, emptyHint: String, modifier: Modifier) {
     val tones = LocalTones.current
     AnimatedContent(card, modifier, transitionSpec = { fadeIn(tween(400)) togetherWith fadeOut(tween(250)) }, contentKey = { it?.key }, label = "info") { c ->
         Column(Modifier.fillMaxWidth(0.55f).fillMaxHeight(), verticalArrangement = Arrangement.Bottom) {

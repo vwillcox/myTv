@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.vwillcox.mytv.app
+import com.vwillcox.mytv.data.AppRepository
 import com.vwillcox.mytv.data.Feed
 import com.vwillcox.mytv.data.MediaCard
 import com.vwillcox.mytv.data.TvApp
@@ -54,8 +55,13 @@ import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+/** Grows the focused element by [scale] and marks it as the skin does. */
+@Composable
+fun Modifier.focusRing(focused: Boolean, scale: Float, corner: Dp, round: Boolean = false): Modifier =
+    LocalSkin.current.FocusRing(this, focused, scale, corner, round)
+
 /** Grows the focused element and rings it, a little way out, in white: Google TV's focus. */
-fun Modifier.focusRing(focused: Boolean, scale: Float, corner: Dp, round: Boolean = false): Modifier = graphicsLayer {
+internal fun Modifier.whiteRing(focused: Boolean, scale: Float, corner: Dp, round: Boolean): Modifier = graphicsLayer {
     scaleX = scale; scaleY = scale
 }.drawWithContent {
     drawContent()
@@ -82,15 +88,20 @@ fun MediaCardView(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
-    val scale by animateFloatAsState(if (focused) 1.08f else 1f, tween(160), label = "scale")
     LaunchedEffect(focused) { if (focused) onFocused() }
+    LocalSkin.current.CardFace(card, width, showText, focused, Modifier.tvClickable(interaction, onLongClick, onClick), modifier)
+}
+
+@Composable
+internal fun GoogleCardFace(card: MediaCard, width: Dp, showText: Boolean, focused: Boolean, control: Modifier, modifier: Modifier) {
+    val scale by animateFloatAsState(if (focused) 1.08f else 1f, tween(160), label = "scale")
     val tones = LocalTones.current
     val shape = RoundedCornerShape(Size.corner)
     Column(modifier.width(width)) {
         Box(
             Modifier.size(width, width * 9 / 16)
                 .focusRing(focused, scale, Size.corner)
-                .tvClickable(interaction, onLongClick, onClick)
+                .then(control)
                 .clip(shape)
                 .background(tones.surface),
         ) {
@@ -130,28 +141,39 @@ fun MediaCardView(
 fun TileView(card: MediaCard, width: Dp, onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
+    LocalSkin.current.TileFace(card, width, focused, Modifier.tvClickable(interaction, onClick = onClick))
+}
+
+@Composable
+internal fun GoogleTileFace(card: MediaCard, width: Dp, focused: Boolean, control: Modifier) {
     val scale by animateFloatAsState(if (focused) 1.08f else 1f, tween(160), label = "scale")
     val tones = LocalTones.current
     Box(
-        Modifier.size(width, width * 9 / 16).focusRing(focused, scale, Size.corner).tvClickable(interaction, onClick = onClick)
+        Modifier.size(width, width * 9 / 16).focusRing(focused, scale, Size.corner).then(control)
             .clip(RoundedCornerShape(Size.corner))
             .background(Brush.linearGradient(listOf(Color(Feed.tint(card.title)), Color(Feed.tint(card.title)).copy(alpha = 0.55f)))),
         Alignment.BottomStart,
     ) { Text(card.title, style = Type.rowSmall, color = tones.text, modifier = Modifier.padding(14.dp)) }
 }
 
+/**
+ * Artwork for an app, made by [make] off the main thread and made again when apps change. [keys] are whatever else
+ * [make] depends on, like the size.
+ */
 @Composable
-private fun rememberIcon(app: TvApp, px: Int, banner: Boolean): ImageBitmap? {
+fun <T : Any> rememberArtwork(pkg: String, vararg keys: Any?, make: AppRepository.() -> T?): T? {
     val repo = LocalContext.current.app.apps
     val changed by repo.changed.collectAsState()
-    return produceState<ImageBitmap?>(null, app.pkg, px, banner, changed) {
-        value = withContext(Dispatchers.IO) { (if (banner) repo.banner(app.pkg, px) else repo.roundIcon(app.pkg, px))?.asImageBitmap() }
-    }.value
+    return produceState<T?>(null, pkg, changed, *keys) { value = withContext(Dispatchers.IO) { repo.make() } }.value
 }
 
+@Composable
+private fun rememberIcon(app: TvApp, px: Int, banner: Boolean): ImageBitmap? =
+    rememberArtwork(app.pkg, px, banner) { (if (banner) banner(app.pkg, px) else roundIcon(app.pkg, px))?.asImageBitmap() }
+
 /**
- * One app in Your apps or the app grid: a round icon in Google TV's style, or the app's TV banner. [moving] marks
- * the app being moved, which arrows then shift along the row.
+ * One app in Your apps or the app grid, as its icon or its TV banner, drawn by the skin. [moving] marks the app
+ * being moved, which arrows then shift along the row.
  */
 @Composable
 fun AppTile(
@@ -165,8 +187,14 @@ fun AppTile(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
-    val scale by animateFloatAsState(if (focused) 1.1f else 1f, tween(160), label = "scale")
     LaunchedEffect(focused) { if (focused) onFocused() }
+    LocalSkin.current.AppFace(app, banner, moving, focused, Modifier.tvClickable(interaction, onLongClick, onClick), modifier)
+}
+
+/** Google TV's round icon, its name showing only while it has focus, or the app's TV banner. */
+@Composable
+internal fun GoogleAppFace(app: TvApp, banner: Boolean, moving: Boolean, focused: Boolean, control: Modifier, modifier: Modifier) {
+    val scale by animateFloatAsState(if (focused) 1.1f else 1f, tween(160), label = "scale")
     val tones = LocalTones.current
     val density = LocalDensity.current
     val width = if (banner) Size.bannerWidth else Size.appCircle
@@ -178,7 +206,7 @@ fun AppTile(
         Box(
             Modifier.size(width, height)
                 .focusRing(focused || moving, if (moving) 1.14f else scale, Size.corner, round = !banner)
-                .tvClickable(interaction, onLongClick, onClick)
+                .then(control)
                 .clip(if (banner) RoundedCornerShape(Size.corner) else CircleShape)
                 .background(tones.surface),
             Alignment.Center,

@@ -37,7 +37,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.graphics.Color
@@ -57,14 +56,14 @@ fun AppsScreen(ui: HomeUi, cfg: Config, all: List<TvApp>, actions: RowActions, o
     val favourites = cfg.favourites.mapNotNull { p -> all.firstOrNull { it.pkg == p } }
     val others = all.filter { it.pkg !in cfg.favourites && it.pkg !in cfg.hidden }
     LazyVerticalGrid(
-        GridCells.Adaptive(if (banner) Size.bannerWidth + 4.dp else Size.appCircle + 30.dp), state = grid,
+        GridCells.Adaptive(if (banner) Size.bannerWidth + 4.dp else Size.appWidth + 4.dp), state = grid,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = Size.gutter - 10.dp, end = Size.gutter, top = TopBarHeight + 16.dp, bottom = 80.dp),
-        horizontalArrangement = Arrangement.spacedBy(if (banner) 18.dp else 6.dp), verticalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(if (banner) 18.dp else Size.appGridGap), verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item(span = { GridItemSpan(maxLineSpan) }, key = "get") {
             Row(
-                Modifier.padding(start = 10.dp, bottom = 18.dp).focusRequester(ui.entry).focusProperties { up = ui.selectedTab }.focusRestorer(),
+                Modifier.padding(start = 10.dp, bottom = 18.dp).focusRequester(ui.entry).upToTab(ui).focusRestorer(),
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 ActionTile(Icons.Rounded.Shop, "Play Store", "Get more apps", onStore)
@@ -89,17 +88,21 @@ fun AppsScreen(ui: HomeUi, cfg: Config, all: List<TvApp>, actions: RowActions, o
 }
 
 @Composable
-private fun Header(text: String) =
-    Text(text, style = Type.rowSmall, color = LocalTones.current.dim, modifier = Modifier.padding(start = 10.dp, top = 8.dp, bottom = 4.dp))
+private fun Header(text: String) = SkinTitle(text, TitleKind.SECTION)
 
 @Composable
 private fun ActionTile(icon: ImageVector, title: String, sub: String, onClick: () -> Unit) {
-    val tones = LocalTones.current
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
+    LocalSkin.current.ActionFace(icon, title, sub, focused, Modifier.tvClickable(interaction, onClick = onClick))
+}
+
+@Composable
+internal fun GoogleActionFace(icon: ImageVector, title: String, sub: String, focused: Boolean, control: Modifier) {
+    val tones = LocalTones.current
     val scale by animateFloatAsState(if (focused) 1.06f else 1f, label = "tile")
     Row(
-        Modifier.focusRing(focused, scale, 14.dp).tvClickable(interaction, onClick = onClick).clip(RoundedCornerShape(14.dp))
+        Modifier.focusRing(focused, scale, 14.dp).then(control).clip(RoundedCornerShape(14.dp))
             .background(if (focused) Color.White else tones.surface).padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

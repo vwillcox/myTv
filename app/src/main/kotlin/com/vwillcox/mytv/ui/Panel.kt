@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -44,31 +45,39 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 
 /**
- * A Google TV style panel down the right of the screen. Focus starts on its first item and can't wander out to
+ * A panel down the right of the screen, as the skin draws it. Focus starts on its first item and can't wander out to
  * the screen behind it; Back closes it (handled by the root).
  */
 @Composable
 fun SidePanel(title: String, subtitle: String? = null, key: Any, content: LazyListScope.() -> Unit) {
-    val tones = LocalTones.current
     val first = remember(key) { FocusRequester() }
+    LocalSkin.current.PanelFace(
+        title, subtitle, Modifier.focusProperties { onExit = { cancelFocusChange() } }.focusGroup(), Modifier.focusRequester(first),
+        rememberLazyListState(), content,
+    )
+    LaunchedEffect(key) { delay(30); runCatching { first.requestFocus() } }
+}
+
+/** Google TV's panel: a rounded sheet with the title at its top. */
+@Composable
+internal fun GooglePanelFace(title: String, subtitle: String?, group: Modifier, list: Modifier, state: LazyListState, content: LazyListScope.() -> Unit) {
+    val tones = LocalTones.current
     Box(Modifier.fillMaxSize().background(Color(0x66000000)), Alignment.CenterEnd) {
         Column(
             Modifier.width(400.dp).fillMaxHeight().clip(RoundedCornerShape(topStart = 28.dp, bottomStart = 28.dp)).background(tones.surface)
-                .focusProperties { onExit = { cancelFocusChange() } }.focusGroup()
+                .then(group)
                 .padding(top = 36.dp),
         ) {
             Text(title, style = Type.panelTitle, color = tones.text, modifier = Modifier.padding(horizontal = 28.dp))
             subtitle?.let { Text(it, style = Type.itemSub, color = tones.dim, modifier = Modifier.padding(start = 28.dp, end = 28.dp, top = 6.dp)) }
             Spacer(Modifier.size(16.dp))
-            val list = rememberLazyListState()
             LazyColumn(
-                Modifier.fillMaxWidth().weight(1f).focusRequester(first),
-                state = list, contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 40.dp),
+                Modifier.fillMaxWidth().weight(1f).then(list),
+                state = state, contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 40.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) { content() }
         }
     }
-    LaunchedEffect(key) { delay(30); runCatching { first.requestFocus() } }
 }
 
 @Composable
@@ -81,12 +90,20 @@ fun PanelItem(
     onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit,
 ) {
-    val tones = LocalTones.current
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
+    LocalSkin.current.ItemFace(title, sub, icon, trailing, chevron, focused, Modifier.tvClickable(interaction, onLongClick, onClick))
+}
+
+@Composable
+internal fun GoogleItemFace(
+    title: String, sub: String?, icon: ImageVector?, trailing: (@Composable (focused: Boolean) -> Unit)?, chevron: Boolean,
+    focused: Boolean, control: Modifier,
+) {
+    val tones = LocalTones.current
     val fg = if (focused) tones.onAccent else tones.text
     Row(
-        Modifier.fillMaxWidth().tvClickable(interaction, onLongClick, onClick).clip(RoundedCornerShape(14.dp))
+        Modifier.fillMaxWidth().then(control).clip(RoundedCornerShape(14.dp))
             .background(if (focused) Color.White else Color.Transparent).padding(horizontal = 14.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -104,30 +121,42 @@ fun PanelItem(
 }
 
 @Composable
-fun PanelToggle(title: String, sub: String? = null, checked: Boolean, icon: ImageVector? = null, onChange: (Boolean) -> Unit) =
-    PanelItem(title, sub, icon, trailing = { focused -> Switch(checked, focused) }) { onChange(!checked) }
-
-@Composable
-fun PanelChoice(title: String, sub: String? = null, selected: Boolean, onClick: () -> Unit) {
-    val tones = LocalTones.current
-    PanelItem(title, sub, trailing = { focused ->
-        Icon(
-            if (selected) Icons.Rounded.RadioButtonChecked else Icons.Rounded.RadioButtonUnchecked, null,
-            tint = if (focused) tones.onAccent else if (selected) tones.accent else tones.dim,
-        )
-    }, onClick = onClick)
+fun PanelToggle(title: String, sub: String? = null, checked: Boolean, icon: ImageVector? = null, onChange: (Boolean) -> Unit) {
+    val skin = LocalSkin.current
+    PanelItem(title, sub, icon, trailing = { focused -> skin.SwitchFace(checked, focused) }) { onChange(!checked) }
 }
 
 @Composable
-fun PanelHeading(text: String) =
+fun PanelChoice(title: String, sub: String? = null, selected: Boolean, onClick: () -> Unit) {
+    val skin = LocalSkin.current
+    PanelItem(title, sub, trailing = { focused -> skin.ChoiceFace(selected, focused) }, onClick = onClick)
+}
+
+@Composable
+fun PanelHeading(text: String) = LocalSkin.current.HeadingFace(text)
+
+@Composable
+fun PanelNote(text: String) = LocalSkin.current.NoteFace(text)
+
+@Composable
+internal fun GoogleChoice(selected: Boolean, focused: Boolean) {
+    val tones = LocalTones.current
+    Icon(
+        if (selected) Icons.Rounded.RadioButtonChecked else Icons.Rounded.RadioButtonUnchecked, null,
+        tint = if (focused) tones.onAccent else if (selected) tones.accent else tones.dim,
+    )
+}
+
+@Composable
+internal fun GoogleHeading(text: String) =
     Text(text, style = Type.itemSub, color = LocalTones.current.faint, modifier = Modifier.padding(start = 14.dp, top = 16.dp, bottom = 4.dp))
 
 @Composable
-fun PanelNote(text: String) =
+internal fun GoogleNote(text: String) =
     Text(text, style = Type.itemSub, color = LocalTones.current.dim, modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp))
 
 @Composable
-private fun Switch(on: Boolean, focused: Boolean) {
+internal fun GoogleSwitch(on: Boolean, focused: Boolean) {
     val tones = LocalTones.current
     val track = when {
         on && focused -> tones.onAccent

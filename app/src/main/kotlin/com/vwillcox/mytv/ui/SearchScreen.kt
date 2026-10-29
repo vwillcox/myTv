@@ -83,22 +83,13 @@ fun SearchScreen(ui: HomeUi, all: List<TvApp>, actions: RowActions) {
         Row(Modifier.padding(horizontal = Size.gutter), verticalAlignment = Alignment.CenterVertically) {
             val interaction = remember { MutableInteractionSource() }
             val focused by interaction.collectIsFocusedAsState()
-            Row(
-                Modifier.width(520.dp).height(52.dp).clip(CircleShape).background(tones.surface)
-                    .border(2.dp, if (focused) Color.White else Color.Transparent, CircleShape).padding(horizontal = 20.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(Icons.Rounded.Search, null, tint = tones.dim, modifier = Modifier.size(22.dp))
-                Spacer(Modifier.width(12.dp))
-                Box(Modifier.weight(1f)) {
-                    if (query.isEmpty()) Text("Films, shows and apps", style = Type.rowSmall, color = tones.faint)
-                    BasicTextField(
-                        query, { query = it }, singleLine = true, interactionSource = interaction,
-                        textStyle = Type.rowSmall.copy(color = tones.text), cursorBrush = SolidColor(tones.accent),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search), keyboardActions = KeyboardActions(onSearch = {}),
-                        modifier = Modifier.fillMaxWidth().focusRequester(ui.entry).focusProperties { up = ui.selectedTab },
-                    )
-                }
+            LocalSkin.current.SearchFace(focused, "Films, shows and apps".takeIf { query.isEmpty() }) {
+                BasicTextField(
+                    query, { query = it }, singleLine = true, interactionSource = interaction,
+                    textStyle = Type.rowSmall.copy(color = tones.text), cursorBrush = SolidColor(tones.accent),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search), keyboardActions = KeyboardActions(onSearch = {}),
+                    modifier = Modifier.fillMaxWidth().focusRequester(ui.entry).focusProperties { up = ui.selectedTab },
+                )
             }
             Spacer(Modifier.width(14.dp))
             RoundButton(Icons.Rounded.Mic, "Speak") {
@@ -120,7 +111,7 @@ fun SearchScreen(ui: HomeUi, all: List<TvApp>, actions: RowActions) {
         )
         if (apps.isNotEmpty()) {
             Text("Apps", style = Type.rowSmall, color = tones.dim, modifier = Modifier.padding(start = Size.gutter, top = 20.dp, bottom = 8.dp))
-            LazyRow(contentPadding = PaddingValues(horizontal = Size.gutter - 13.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            LazyRow(contentPadding = PaddingValues(horizontal = Size.gutter - Size.appInset, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(Size.appGap)) {
                 items(apps, key = { it.pkg }) { a -> AppTile(a, banner = false, moving = false, onLongClick = { actions.appMenu(a) }) { actions.launch(a) } }
             }
         }
@@ -133,11 +124,33 @@ fun SearchScreen(ui: HomeUi, all: List<TvApp>, actions: RowActions) {
 
 @Composable
 private fun RoundButton(icon: ImageVector, label: String, onClick: () -> Unit) {
-    val tones = LocalTones.current
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
+    LocalSkin.current.ButtonFace(icon, label, focused, Modifier.tvClickable(interaction, onClick = onClick))
+}
+
+@Composable
+internal fun GoogleSearchFace(focused: Boolean, placeholder: String?, field: @Composable () -> Unit) {
+    val tones = LocalTones.current
+    Row(
+        Modifier.width(520.dp).height(52.dp).clip(CircleShape).background(tones.surface)
+            .border(2.dp, if (focused) Color.White else Color.Transparent, CircleShape).padding(horizontal = 20.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Rounded.Search, null, tint = tones.dim, modifier = Modifier.size(22.dp))
+        Spacer(Modifier.width(12.dp))
+        Box(Modifier.weight(1f)) {
+            if (placeholder != null) Text(placeholder, style = Type.rowSmall, color = tones.faint)
+            field()
+        }
+    }
+}
+
+@Composable
+internal fun GoogleButtonFace(icon: ImageVector, label: String, focused: Boolean, control: Modifier) {
+    val tones = LocalTones.current
     Box(
-        Modifier.size(52.dp).tvClickable(interaction, onClick = onClick).clip(CircleShape).background(if (focused) Color.White else tones.surface),
+        Modifier.size(52.dp).then(control).clip(CircleShape).background(if (focused) Color.White else tones.surface),
         Alignment.Center,
     ) { Icon(icon, label, tint = if (focused) tones.onAccent else tones.text, modifier = Modifier.size(24.dp)) }
 }

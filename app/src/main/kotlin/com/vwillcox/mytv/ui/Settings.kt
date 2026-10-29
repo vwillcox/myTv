@@ -30,6 +30,7 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Shop
 import androidx.compose.material.icons.rounded.Storage
+import androidx.compose.material.icons.rounded.Style
 import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material.icons.rounded.TrendingUp
 import androidx.compose.material.icons.rounded.ViewAgenda
@@ -64,6 +65,7 @@ import com.vwillcox.mytv.data.MediaCard
 import com.vwillcox.mytv.data.Open
 import com.vwillcox.mytv.data.SourcePrefs
 import com.vwillcox.mytv.data.Tab
+import com.vwillcox.mytv.data.ThemeId
 import com.vwillcox.mytv.data.TvApp
 import com.vwillcox.mytv.data.Watcher
 import com.vwillcox.mytv.data.channelKey
@@ -112,6 +114,7 @@ private fun Page(ui: HomeUi, id: String, cfg: Config, feed: FeedState, all: List
             item { PanelItem("Media sources", "Which apps may add to Continue watching, Top picks and rows", Icons.Rounded.Movie, chevron = true) { go("sources") } }
             item { PanelItem("Home screen rows", "Which rows each tab shows, in what order", Icons.Rounded.ViewAgenda, chevron = true) { go("rows") } }
             item { PanelItem("Your apps", "Icon style, hidden apps", Icons.Rounded.Apps, chevron = true) { go("apps") } }
+            item { PanelItem("Theme", cfg.look.theme.label, Icons.Rounded.Style, chevron = true) { go("theme") } }
             item { PanelItem("Look and background", cfg.look.background.label, Icons.Rounded.Palette, chevron = true) { go("look") } }
             item { PanelItem("Screensaver", sys.dream?.let { d -> sys.dreams().firstOrNull { it.component == d }?.label } ?: "Not set", Icons.Rounded.Bedtime, chevron = true) { go("screensaver") } }
             item { PanelItem("Library", feed.libraryProblem ?: "From AllMedia · titles open there", Icons.Rounded.Storage, chevron = true) { go("library") } }
@@ -219,7 +222,24 @@ private fun Page(ui: HomeUi, id: String, cfg: Config, feed: FeedState, all: List
             for (a in hidden) item(a.pkg) { PanelItem(a.label, icon = Icons.Rounded.VisibilityOff) { store.update { it.copy(hidden = it.hidden - a.pkg) } } }
         }
 
+        "theme" -> SidePanel("Theme", "How the whole screen looks. Your apps, rows and settings are the same in each.", key = key) {
+            for (t in ThemeId.entries) item(t.name) {
+                PanelChoice(t.label, t.sub, cfg.look.theme == t) { store.update { it.copy(look = it.look.copy(theme = t)) } }
+            }
+            if (cfg.look.theme == ThemeId.LCARS) {
+                item { PanelHeading("LCARS") }
+                item { PanelToggle("Computer sounds", "A chirp when you choose something, as on the Enterprise", cfg.look.sounds) { on -> store.update { it.copy(look = it.look.copy(sounds = on)) } } }
+                item {
+                    PanelToggle("Flashing panels and readouts", "Blocks that flicker, numbers that run, and the power-up as it starts", cfg.look.motion) { on ->
+                        store.update { it.copy(look = it.look.copy(motion = on)) }
+                    }
+                }
+                item { PanelNote("Each app's mark is lifted off its icon and drawn in the panel colour nearest its own.") }
+            }
+        }
+
         "look" -> SidePanel("Look and background", key = key) {
+            item { PanelItem("Theme", cfg.look.theme.label, Icons.Rounded.Style, chevron = true) { go("theme") } }
             item { PanelHeading("Background") }
             for (m in BackgroundMode.entries) item(m.name) {
                 PanelChoice(m.label, if (m == BackgroundMode.PHOTO) "Send one from the phone setup page" else null, cfg.look.background == m) {
@@ -235,8 +255,11 @@ private fun Page(ui: HomeUi, id: String, cfg: Config, feed: FeedState, all: List
                 item { PanelHeading("Darkening") }
                 for (d in listOf(0.3f, 0.45f, 0.6f, 0.75f)) item("d$d") { PanelChoice("${(d * 100).toInt()}%", selected = cfg.look.dim == d) { store.update { it.copy(look = it.look.copy(dim = d)) } } }
             }
-            item { PanelHeading("Highlight colour") }
-            for ((name, c) in Accents) item("a$name") { PanelChoice(name, selected = cfg.look.accent == c) { store.update { it.copy(look = it.look.copy(accent = c)) } } }
+            // Other themes have colours of their own.
+            if (cfg.look.theme == ThemeId.GOOGLE_TV) {
+                item { PanelHeading("Highlight colour") }
+                for ((name, c) in Accents) item("a$name") { PanelChoice(name, selected = cfg.look.accent == c) { store.update { it.copy(look = it.look.copy(accent = c)) } } }
+            }
             item { PanelHeading("Clock") }
             item { PanelToggle("24-hour clock", null, cfg.look.clock24) { on -> store.update { it.copy(look = it.look.copy(clock24 = on)) } } }
             item { PanelHeading("Banner") }

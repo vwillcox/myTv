@@ -82,6 +82,12 @@ val DefaultRows: Map<Tab, List<RowPref>> = mapOf(
 
 enum class AppStyle(val label: String) { CIRCLE("Round icons"), BANNER("Banners") }
 
+/** The whole screen's look: colours, type, and how everything on it is drawn. */
+enum class ThemeId(val label: String, val sub: String) {
+    GOOGLE_TV("Google TV", "Frosted glass and rounded cards, like the TV's own home screen"),
+    LCARS("LCARS", "A Starfleet computer panel, as aboard the Enterprise-D"),
+}
+
 enum class BackgroundMode(val label: String) {
     DARK("Dark"),
     ARTWORK("Artwork of what's focused"),
@@ -105,6 +111,11 @@ data class Look(
     val brand: String = "myTV",
     /** How long each title stays in the banner before the next, while nothing in Top picks has focus. */
     val heroSeconds: Int = 9,
+    val theme: ThemeId = ThemeId.GOOGLE_TV,
+    /** Sounds for choosing things, in themes that have them. */
+    val sounds: Boolean = true,
+    /** Panels that flash and readouts that run by themselves, in themes that have them. */
+    val motion: Boolean = true,
 )
 
 @Serializable

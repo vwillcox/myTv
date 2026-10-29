@@ -36,10 +36,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
@@ -103,6 +103,9 @@ fun BrowseScreen(ui: HomeUi, tab: Tab, feed: FeedState, cfg: Config, favourites:
 
     fun focusRow(index: Int) = scope.launch {
         if (index == 0) { list.animateScrollToItem(0); return@launch }
+        // The row losing focus hides its cards' names as this one shows them. Measured before those sizes land,
+        // the row would end up above the top by the difference.
+        repeat(2) { withFrameNanos { } }
         val peek = with(density) { 6.dp.toPx() }
         val info = list.layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }
         if (info != null) list.animateScrollBy(info.offset - peek) else list.animateScrollToItem(index, -peek.toInt())
@@ -116,7 +119,7 @@ fun BrowseScreen(ui: HomeUi, tab: Tab, feed: FeedState, cfg: Config, favourites:
                 LazyColumn(state = list, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 180.dp)) {
                     // The banner's key and the rows' keys live apart, so no row's key can be the banner's.
                     item("banner") {
-                        Column(Modifier.fillMaxWidth().height(screen - 108.dp)) {
+                        Column(Modifier.fillMaxWidth().height(screen - Size.bannerPeek)) {
                             Spacer(Modifier.height(TopBarHeight))
                             HeroInfo(
                                 ui.spotlight,
@@ -126,10 +129,10 @@ fun BrowseScreen(ui: HomeUi, tab: Tab, feed: FeedState, cfg: Config, favourites:
                                 modifier = Modifier.weight(1f).padding(start = Size.gutter, bottom = 18.dp),
                             )
                             if (picks.isNotEmpty()) {
-                                Text("Top picks for you", style = Type.rowSmall.copy(fontSize = 14.sp), color = LocalTones.current.dim, modifier = Modifier.padding(start = Size.gutter, bottom = 12.dp))
+                                SkinTitle("Top picks for you", TitleKind.PICKS)
                                 CardRow(
                                     picks, RowStyle.PICKS, focusedRow = false,
-                                    modifier = Modifier.focusRequester(ui.entry).focusProperties { up = ui.selectedTab }
+                                    modifier = Modifier.focusRequester(ui.entry).upToTab(ui)
                                         .onFocusChanged { ui.pickFocused = it.hasFocus; if (it.hasFocus) focusRow(0) },
                                     onCardFocused = { ui.spotlight = it; ui.focusedArt = it.backdrop },
                                     actions = actions,
@@ -140,7 +143,7 @@ fun BrowseScreen(ui: HomeUi, tab: Tab, feed: FeedState, cfg: Config, favourites:
                     }
                     itemsIndexed(rows, key = { _, r -> "row:${r.key}" }) { i, row ->
                         var focused by remember { mutableStateOf(false) }
-                        val entryMod = if (picks.isEmpty() && i == 0) Modifier.focusRequester(ui.entry).focusProperties { up = ui.selectedTab } else Modifier
+                        val entryMod = if (picks.isEmpty() && i == 0) Modifier.focusRequester(ui.entry).upToTab(ui) else Modifier
                         RowBlock(
                             row, focused, cfg, favourites, ui, actions,
                             modifier = entryMod.onFocusChanged { f -> focused = f.hasFocus; if (f.hasFocus) focusRow(i + 1) },
@@ -152,14 +155,11 @@ fun BrowseScreen(ui: HomeUi, tab: Tab, feed: FeedState, cfg: Config, favourites:
     }
 }
 
-/** A titled row. The focused row's title is larger, and only its cards carry their names, as on Google TV. */
+/** A titled row. The focused row's title stands out, and only its cards carry their names, as on Google TV. */
 @Composable
 fun RowBlock(row: Row, focused: Boolean, cfg: Config, favourites: List<TvApp>, ui: HomeUi, actions: RowActions, modifier: Modifier = Modifier) {
-    val tones = LocalTones.current
-    val size by animateFloatAsState(if (focused) 30f else 16f, tween(200), label = "title")
     Column(Modifier.fillMaxWidth().padding(top = 18.dp)) {
-        Text(row.title, style = Type.rowBig.copy(fontSize = size.sp), color = if (focused) tones.text else tones.dim,
-            modifier = Modifier.padding(start = Size.gutter, bottom = if (focused) 18.dp else 12.dp))
+        SkinTitle(row.title, TitleKind.ROW, focused)
         when (row.style) {
             RowStyle.APPS -> AppsRow(favourites, cfg, ui, actions, modifier)
             else -> CardRow(row.cards, row.style, focused, modifier, onCardFocused = { ui.focusedArt = it.backdrop }, actions = actions)
@@ -209,8 +209,8 @@ fun AppsRow(apps: List<TvApp>, cfg: Config, ui: HomeUi, actions: RowActions, mod
     CompositionLocalProvider(LocalBringIntoViewSpec provides remember(lead) { PivotSpec(lead) }) {
         LazyRow(
             modifier.fillMaxWidth().focusRestorer(),
-            contentPadding = PaddingValues(horizontal = Size.gutter - 13.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(if (cfg.look.appStyle == com.vwillcox.mytv.data.AppStyle.BANNER) Size.cardGap else 2.dp),
+            contentPadding = PaddingValues(horizontal = Size.gutter - Size.appInset, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(if (cfg.look.appStyle == com.vwillcox.mytv.data.AppStyle.BANNER) Size.cardGap else Size.appGap),
         ) {
             items(apps, key = { it.pkg }) { app ->
                 val moving = ui.moving == app.pkg
@@ -249,7 +249,7 @@ fun GridScreen(browse: Open.Browse, actions: RowActions) {
     val tones = LocalTones.current
     val first = remember { FocusRequester() }
     Column(Modifier.fillMaxSize().padding(top = 36.dp)) {
-        Text(browse.title, style = Type.rowBig, color = tones.text, modifier = Modifier.padding(start = Size.gutter, bottom = 18.dp))
+        SkinTitle(browse.title, TitleKind.PAGE)
         val list = cards
         when {
             list == null -> Text("Loading…", style = Type.body, color = tones.dim, modifier = Modifier.padding(start = Size.gutter))
@@ -268,5 +268,25 @@ fun GridScreen(browse: Open.Browse, actions: RowActions) {
                 LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
             }
         }
+    }
+}
+
+/** A heading as the skin draws it. */
+@Composable
+fun SkinTitle(text: String, kind: TitleKind, focused: Boolean = false, modifier: Modifier = Modifier) =
+    LocalSkin.current.Title(text, kind, focused, modifier)
+
+@Composable
+internal fun GoogleTitle(text: String, kind: TitleKind, focused: Boolean, modifier: Modifier) {
+    val tones = LocalTones.current
+    when (kind) {
+        TitleKind.ROW -> {
+            val size by animateFloatAsState(if (focused) 30f else 16f, tween(200), label = "title")
+            Text(text, style = Type.rowBig.copy(fontSize = size.sp), color = if (focused) tones.text else tones.dim,
+                modifier = modifier.padding(start = Size.gutter, bottom = if (focused) 18.dp else 12.dp))
+        }
+        TitleKind.PICKS -> Text(text, style = Type.rowSmall.copy(fontSize = 14.sp), color = tones.dim, modifier = modifier.padding(start = Size.gutter, bottom = 12.dp))
+        TitleKind.SECTION -> Text(text, style = Type.rowSmall, color = tones.dim, modifier = modifier.padding(start = 10.dp, top = 8.dp, bottom = 4.dp))
+        TitleKind.PAGE -> Text(text, style = Type.rowBig, color = tones.text, modifier = modifier.padding(start = Size.gutter, bottom = 18.dp))
     }
 }

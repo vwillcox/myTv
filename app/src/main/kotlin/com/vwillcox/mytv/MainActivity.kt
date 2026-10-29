@@ -12,11 +12,9 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -25,30 +23,23 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.focusProperties
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.focusRestorer
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
 import com.vwillcox.mytv.data.Config
 import com.vwillcox.mytv.data.Open
 import com.vwillcox.mytv.data.Tab
 import com.vwillcox.mytv.ui.AppsScreen
-import com.vwillcox.mytv.ui.BackgroundLayer
 import com.vwillcox.mytv.ui.BrowseScreen
 import com.vwillcox.mytv.ui.GridScreen
+import com.vwillcox.mytv.ui.HomeFrame
 import com.vwillcox.mytv.ui.HomeUi
-import com.vwillcox.mytv.ui.LocalGlass
+import com.vwillcox.mytv.ui.LocalSkin
+import com.vwillcox.mytv.ui.LocalSounds
 import com.vwillcox.mytv.ui.MyTvTheme
 import com.vwillcox.mytv.ui.Panel
 import com.vwillcox.mytv.ui.PanelHost
 import com.vwillcox.mytv.ui.RowActions
 import com.vwillcox.mytv.ui.SearchScreen
-import com.vwillcox.mytv.ui.TopBar
 import com.vwillcox.mytv.ui.defaultFavourites
 import com.vwillcox.mytv.system.SystemPages
-import dev.chrisbanes.haze.hazeSource
-import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -60,7 +51,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             val cfg by app.store.config.collectAsState()
-            MyTvTheme(Color(cfg.look.accent)) { Root(app, cfg, events) }
+            MyTvTheme(cfg.look) { Root(app, cfg, events) }
         }
         handle(intent, fresh = true)
     }
@@ -156,49 +147,51 @@ private fun Root(app: App, cfg: Config, events: SharedFlow<String>) {
         hadPanel = ui.panels.isNotEmpty()
     }
 
+    val skin = LocalSkin.current
+    val sounds = LocalSounds.current
     BackHandler(true) {
         when {
             ui.moving != null -> ui.moving = null
-            ui.panels.isNotEmpty() -> ui.closePanel()
+            ui.panels.isNotEmpty() -> { sounds.close(); ui.closePanel() }
             ui.grid != null -> ui.grid = null
             !barFocused -> { ui.resets++; focusTab() }
             ui.searching || ui.tab != Tab.HOME -> { reset(); runCatching { ui.tabs.getValue(Tab.HOME.name).requestFocus() } }
         }
     }
 
-    // The background and the screen on show are what the top bar's glass blurs.
-    val glass = rememberHazeState()
-    Box(Modifier.fillMaxSize()) {
-        BackgroundLayer(cfg.look, ui.focusedArt, Modifier.hazeSource(glass, zIndex = 0f))
-        Box(Modifier.fillMaxSize().focusRequester(ui.main).focusRestorer().focusGroup()) {
-            val grid = ui.grid
-            if (grid != null) {
-                GridScreen(grid, actions)
-            } else {
-                AnimatedContent(
-                    if (ui.searching) "search" else ui.tab.name, Modifier.fillMaxSize().hazeSource(glass, zIndex = 1f),
-                    transitionSpec = { fadeIn(tween(260)) togetherWith fadeOut(tween(160)) }, label = "tab",
-                ) { shown ->
-                    when (shown) {
-                        "search" -> SearchScreen(ui, all, actions)
-                        Tab.APPS.name -> AppsScreen(
-                            ui, cfg, all.filter { it.pkg !in cfg.hidden || it.pkg in cfg.favourites }, actions,
-                            onStore = { app.apps.store() }, onInstall = { ui.open(Panel.Page("phone")) },
-                            onSettings = { ui.open(Panel.Page("apps")) }, onSystem = { app.system.openSystem(SystemPages.first()) },
-                        )
-                        else -> BrowseScreen(ui, Tab.valueOf(shown), feed, cfg, favourites, actions)
-                    }
-                }
-                Box(Modifier.focusProperties { down = ui.entry }.onFocusChanged { barFocused = it.hasFocus }) {
-                    CompositionLocalProvider(LocalGlass provides glass) {
-                        TopBar(ui, feed.avatar, feed.userName ?: cfg.watching?.name, cfg.look) { t ->
-                            if (t == null) ui.searching = true else { ui.searching = false; ui.tab = t }
-                            ui.scrolled = 0f
-                        }
-                    }
+    val frame = HomeFrame(
+        ui, cfg.look, feed.avatar, feed.userName ?: cfg.watching?.name,
+        onTab = { t ->
+            // Another tab closes a genre's grid; the one already open (a skin may show the tabs beside it) keeps it.
+            val moved = if (t == null) !ui.searching else ui.searching || t != ui.tab
+            if (moved) ui.grid = null
+            if (t == null) ui.searching = true else { ui.searching = false; ui.tab = t }
+            ui.scrolled = 0f
+        },
+        onNavFocus = { barFocused = it },
+    ) { screen ->
+        val grid = ui.grid
+        if (grid != null) {
+            GridScreen(grid, actions)
+        } else {
+            AnimatedContent(
+                if (ui.searching) "search" else ui.tab.name, screen.fillMaxSize(),
+                transitionSpec = { fadeIn(tween(260)) togetherWith fadeOut(tween(160)) }, label = "tab",
+            ) { shown ->
+                when (shown) {
+                    "search" -> SearchScreen(ui, all, actions)
+                    Tab.APPS.name -> AppsScreen(
+                        ui, cfg, all.filter { it.pkg !in cfg.hidden || it.pkg in cfg.favourites }, actions,
+                        onStore = { app.apps.store() }, onInstall = { ui.open(Panel.Page("phone")) },
+                        onSettings = { ui.open(Panel.Page("apps")) }, onSystem = { app.system.openSystem(SystemPages.first()) },
+                    )
+                    else -> BrowseScreen(ui, Tab.valueOf(shown), feed, cfg, favourites, actions)
                 }
             }
         }
+    }
+    Box(Modifier.fillMaxSize()) {
+        skin.Frame(frame)
         PanelHost(ui, cfg, feed, all)
     }
 }
