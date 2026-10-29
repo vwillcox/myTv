@@ -1,0 +1,2 @@
+-dontwarn fi.iki.elonen.**
+-dontwarn org.slf4j.**

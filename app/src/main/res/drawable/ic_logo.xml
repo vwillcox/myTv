@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A screen on a stand with a play mark: the app's mark on its icon and banner. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M30,34h48a6,6 0,0 1,6 6v26a6,6 0,0 1,-6 6h-48a6,6 0,0 1,-6 -6v-26a6,6 0,0 1,6 -6z" />
+    <path android:fillColor="#FF1A73E8" android:pathData="M49,44.5l13,8.5l-13,8.5z" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M44,76h20a2,2 0,0 1,0 4h-20a2,2 0,0 1,0 -4z" />
+</vector>

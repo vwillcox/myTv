@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Who is watching, for AllMedia, which is signed with the same key. -->
+    <permission
+        android:name="com.vwillcox.mytv.permission.PROFILE"
+        android:protectionLevel="signature" />
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+
+    <!-- A launcher lists every app, not just the ones it names. -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+
+    <!-- Other apps' preview channels and Watch Next. READ_TV_LISTINGS is the one that matters: without it
+         the TV provider shows an app only its own rows. -->
+    <uses-permission android:name="android.permission.READ_TV_LISTINGS" />
+    <uses-permission android:name="com.android.providers.tv.permission.READ_EPG_DATA" />
+
+    <!-- Granted over adb (see README): screensaver choice and timeouts, and switching on the Home button service. -->
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
+
+    <!-- The library, from AllMedia, which gives it only to apps signed with its key. -->
+    <uses-permission android:name="app.allmedia.permission.LIBRARY" />
+
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+
+    <application
+        android:name=".App"
+        android:allowBackup="false"
+        android:banner="@drawable/banner"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:largeHeap="true"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.MyTv"
+        android:usesCleartextTraffic="true">
+
+        <activity
+            android:name=".MainActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:resizeableActivity="false"
+            android:screenOrientation="landscape"
+            android:stateNotNeeded="true"
+            android:excludeFromRecents="true"
+            android:windowSoftInputMode="adjustPan"
+            tools:ignore="DiscouragedApi,LockedOrientationActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Google TV keeps its own home screen behind the Home button whatever the default is, so this
+             service takes the button (and the stock home screen, when something brings it up) back. -->
+        <service
+            android:name=".system.HomeButtonService"
+            android:exported="false"
+            android:label="@string/home_service_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/home_service" />
+        </service>
+
+        <service
+            android:name=".dream.AmbientDream"
+            android:exported="true"
+            android:label="@string/dream_name"
+            android:permission="android.permission.BIND_DREAM_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.dreams.DreamService" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.dream"
+                android:resource="@xml/dream" />
+        </service>
+
+        <provider
+            android:name=".system.ProfileProvider"
+            android:authorities="com.vwillcox.mytv.profile"
+            android:exported="true"
+            android:readPermission="com.vwillcox.mytv.permission.PROFILE"
+            android:writePermission="com.vwillcox.mytv.permission.PROFILE" />
+
+        <receiver
+            android:name=".system.InstallReceiver"
+            android:exported="false" />
+    </application>
+</manifest>
