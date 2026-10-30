@@ -102,17 +102,25 @@ internal fun LcarsFrame(f: HomeFrame) {
     LaunchedEffect(Unit) {
         if (boot.value < 1f) { sounds.boot(); boot.animateTo(1f, tween(1400, easing = LinearEasing)) }
     }
-    Box(Modifier.fillMaxSize().background(Color.Black).padding(horizontal = 22.dp, vertical = 14.dp)) {
-        Column(Modifier.fillMaxSize()) {
-            Header(f.look, boot, Modifier.fillMaxWidth().height(HeaderHeight))
-            Spacer(Modifier.height(6.dp))
-            Main(f, boot, Modifier.fillMaxWidth().weight(1f))
+    val reels = remember { Reels() }
+    LaunchedEffect(f.ui.resets, f.ui.panels.size) { reels.showing = null }
+    Box(Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxSize().background(Color.Black).padding(horizontal = 22.dp, vertical = 14.dp)) {
+            Column(Modifier.fillMaxSize()) {
+                Header(f.look, boot, reels, Modifier.fillMaxWidth().height(HeaderHeight))
+                Spacer(Modifier.height(6.dp))
+                Main(f, boot, reels, Modifier.fillMaxWidth().weight(1f))
+            }
+        }
+        reels.showing?.let { reel ->
+            // Focus goes back to its block before the film goes, while the block may still take it.
+            ReelPlayer(reel) { runCatching { reels.from(reel).requestFocus() }; reels.showing = null }
         }
     }
 }
 
 @Composable
-private fun Header(look: Look, boot: Boot, modifier: Modifier) {
+private fun Header(look: Look, boot: Boot, reels: Reels, modifier: Modifier) {
     val now by produceState(System.currentTimeMillis()) {
         while (true) { value = System.currentTimeMillis(); delay(60_000 - value % 60_000) }
     }
@@ -135,7 +143,7 @@ private fun Header(look: Look, boot: Boot, modifier: Modifier) {
                 ))
             }
         }
-        BlockLabel("LCARS", Modifier.width(Side).height(30.dp), boot.part(0.15f, 0.3f))
+        TopBlock(reels, Modifier.width(Side).height(30.dp), boot.part(0.15f, 0.3f))
         BlockLabel(code(look.brand + "deck"), Modifier.width(Side).height(HeaderHeight), boot.part(0.2f, 0.35f))
         Row(
             Modifier.fillMaxSize().padding(start = Side + 30.dp, bottom = Arm + 5.dp)
@@ -166,8 +174,54 @@ private fun BlockLabel(text: String, modifier: Modifier, alpha: Float) {
     }
 }
 
+/**
+ * The block at the very top, labelled LCARS. Up from Search reaches it, and OK on it plays the tribute. Like the
+ * upright's blocks, it flashes and lights when focused.
+ */
 @Composable
-private fun Main(f: HomeFrame, boot: Boot, modifier: Modifier) {
+private fun TopBlock(reels: Reels, modifier: Modifier, alpha: Float) {
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
+    val flash by rememberFlash(focused)
+    Box(
+        modifier.focusRequester(reels.top)
+            .focusProperties { canFocus = reels.reachable; left = FocusRequester.Cancel; right = FocusRequester.Cancel; up = FocusRequester.Cancel }
+            .onFocusChanged { reels.topFocused = it.isFocused }
+            .tvClickable(interaction) { reels.showing = Reel.TRIBUTE }
+            .drawBehind { if (focused) drawRect(lerp(Lcars.BlueBell.dim(0.4f), Lcars.Lit, flash)) },
+        Alignment.BottomEnd,
+    ) {
+        Text("LCARS", style = LcarsText.label, color = Color.Black, modifier = Modifier.graphicsLayer { this.alpha = alpha }.padding(end = 8.dp, bottom = 2.dp))
+    }
+}
+
+/** The main frame's bottom elbow, in its own space: the upright's foot curving into the thin bottom arm. */
+private fun DrawScope.aftElbow() = elbow(BottomElbow.toPx(), Side.toPx(), BottomArm.toPx(), 28.dp.toPx(), 12.dp.toPx(), (Side + AftReach).toPx(), bottom = true)
+
+private val AftReach = 44.dp
+
+/**
+ * The bottom elbow, numbered 77-0994, below Settings at the upright's foot. OK on it plays the warp. Focused, the
+ * whole elbow lights.
+ */
+@Composable
+private fun Aft(entry: FocusRequester?, reels: Reels, alpha: Float) {
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
+    val flash by rememberFlash(focused)
+    Box(
+        Modifier.fillMaxWidth().height(BottomElbow).focusRequester(reels.aft)
+            .focusProperties { canFocus = reels.reachable; entry?.let { right = it } }
+            .tvClickable(interaction) { reels.showing = Reel.WARP }
+            .drawBehind { if (focused) drawPath(aftElbow(), lerp(Lcars.Tangerine.dim(0.4f), Lcars.Lit, flash)) },
+        Alignment.BottomEnd,
+    ) {
+        Text(code("aft"), style = LcarsText.label, color = Color.Black, modifier = Modifier.graphicsLayer { this.alpha = alpha }.padding(end = 8.dp, bottom = 2.dp))
+    }
+}
+
+@Composable
+private fun Main(f: HomeFrame, boot: Boot, reels: Reels, modifier: Modifier) {
     val ui = f.ui
     val time = LocalLcarsTime.current
     val motion = LocalLcarsMotion.current
@@ -187,11 +241,8 @@ private fun Main(f: HomeFrame, boot: Boot, modifier: Modifier) {
                 if (motion) sweep(spans[2], 0f, Arm.toPx(), time.value, 5200L)
             }
             // The bottom elbow and its thinner arm.
-            val bottomReach = side + 44.dp.toPx()
-            val bottomTop = size.height - BottomElbow.toPx()
-            translate(top = bottomTop) {
-                drawPath(elbow(BottomElbow.toPx(), side, BottomArm.toPx(), 28.dp.toPx(), 12.dp.toPx(), bottomReach, bottom = true), Lcars.Tangerine, alpha = shown)
-            }
+            val bottomReach = side + AftReach.toPx()
+            translate(top = size.height - BottomElbow.toPx()) { drawPath(aftElbow(), Lcars.Tangerine, alpha = shown) }
             clipRect(right = bottomReach + (size.width - bottomReach) * grow) {
                 val y = size.height - BottomArm.toPx()
                 val spans = bar(bottomReach + slice, size.width, y, BottomArm.toPx(), slice, listOf(
@@ -201,11 +252,10 @@ private fun Main(f: HomeFrame, boot: Boot, modifier: Modifier) {
             }
         }
         BlockLabel(code("main" + f.look.brand), Modifier.width(Side).height(TopElbow), boot.part(0.2f, 0.35f))
-        BlockLabel(code("aft"), Modifier.width(Side).height(BottomElbow).align(Alignment.BottomStart), boot.part(0.25f, 0.4f))
         SectionTitle(f, Modifier.align(Alignment.TopEnd).padding(end = 120.dp).offset(y = (-7).dp).graphicsLayer { alpha = boot.part(0.45f, 0.6f) })
 
         Box(Modifier.fillMaxSize().focusRequester(ui.main).focusRestorer().focusGroup()) {
-            Nav(f, boot, Modifier.width(Side).fillMaxHeight().padding(top = TopElbow + Slice, bottom = BottomElbow + Slice))
+            Nav(f, boot, reels, Modifier.width(Side).fillMaxHeight().padding(top = TopElbow + Slice))
             Box(
                 Modifier.fillMaxSize().padding(start = Side + Inset, top = Arm + 8.dp, bottom = BottomArm + 8.dp).clipToBounds()
                     .graphicsLayer { alpha = boot.part(0.55f, 1f) }
@@ -264,12 +314,12 @@ private fun SectionTitle(f: HomeFrame, modifier: Modifier) {
 }
 
 /**
- * The upright's blocks: the tabs, a spare block, then who's watching and settings. Like Google TV's tabs, a tab
- * opens as soon as it's focused. Coming in from the screen always lands on the open tab, whichever block is
- * nearest, so passing through doesn't change tab.
+ * The upright's blocks: the tabs, a spare block, then who's watching and settings, with the bottom elbow at the
+ * foot. Like Google TV's tabs, a tab opens as soon as it's focused. Coming in from the screen always lands on the
+ * open tab, whichever block is nearest, so passing through doesn't change tab.
  */
 @Composable
-private fun Nav(f: HomeFrame, boot: Boot, modifier: Modifier) {
+private fun Nav(f: HomeFrame, boot: Boot, reels: Reels, modifier: Modifier) {
     val ui = f.ui
     // Right goes back down into the screen, unless a genre's grid is up (it has its own way in).
     val entry = if (ui.grid == null) ui.entry else null
@@ -278,7 +328,7 @@ private fun Nav(f: HomeFrame, boot: Boot, modifier: Modifier) {
             .focusProperties {
                 onEnter = { if (requestedFocusDirection != FocusDirection.Enter) runCatching { ui.selectedTab.requestFocus() } }
             }
-            .onFocusChanged { f.onNavFocus(it.hasFocus) }
+            .onFocusChanged { f.onNavFocus(it.hasFocus); reels.navFocused = it.hasFocus }
             .focusGroup(),
         verticalArrangement = Arrangement.spacedBy(Slice),
     ) {
@@ -291,6 +341,7 @@ private fun Nav(f: HomeFrame, boot: Boot, modifier: Modifier) {
         Spare(Modifier.weight(1f).then(appear()))
         NavBlock(f.userName ?: "Crew", Lcars.Lilac, 30.dp, entry, appear()) { ui.open(Panel.Page("account")) }
         NavBlock("Settings", Lcars.Mars, 30.dp, entry, appear()) { ui.open(Panel.Page("root")) }
+        Aft(entry, reels, boot.part(0.25f, 0.4f))
     }
 }
 

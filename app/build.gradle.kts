@@ -77,4 +77,6 @@ dependencies {
     // The frosted glass of the top bar: the page behind it, blurred.
     implementation(libs.haze)
     implementation(libs.haze.blur)
+    // The films the LCARS theme hides in its frame.
+    implementation(libs.media3.exoplayer)
 }

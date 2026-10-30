@@ -1,0 +1,9 @@
+"Patrick Stewart speaking at the 2019 San Diego Comic-Con International" by Gage Skidmore, 20 July 2019
+(https://commons.wikimedia.org/wiki/File:Patrick_Stewart_by_Gage_Skidmore_2.jpg)
+
+This photograph is licensed under the Creative Commons Attribution-ShareAlike 3.0 Unported License (CC BY-SA 3.0):
+https://creativecommons.org/licenses/by-sa/3.0/
+
+Changes: cropped, the background cut away (rembg, isnet-general-use), the edge softened and the foot faded out, as
+tools/tribute-portrait.png. That cut-out, and the film it fades into, app/src/main/res/raw/tribute.mp4 (rendered by
+tools/tribute.py), are adaptations of the photograph and are shared under the same licence, CC BY-SA 3.0.

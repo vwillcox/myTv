@@ -128,7 +128,7 @@ internal fun LcarsHeroBackdrop(card: MediaCard?, scrolled: Float) {
 
 /**
  * The words over the banner, as a readout: the source in a lit block with its number, the title in tall capitals
- * (or its logo, recoloured to match), the details in a line divided by small blocks, and the summary.
+ * (or its logo, in its own colours), the details in a line divided by small blocks, and the summary.
  */
 @Composable
 internal fun LcarsHeroInfo(card: MediaCard?, emptyTitle: String, emptyHint: String, modifier: Modifier) {
@@ -143,7 +143,6 @@ internal fun LcarsHeroInfo(card: MediaCard?, emptyTitle: String, emptyHint: Stri
             if (c.logo != null) {
                 AsyncImage(
                     c.logo, c.title, Modifier.heightIn(max = 72.dp).widthIn(max = 360.dp), contentScale = ContentScale.Fit, alignment = Alignment.BottomStart,
-                    colorFilter = ColorFilter.tint(Lcars.Peach),
                 )
             } else {
                 Text(c.title.uppercase(), style = if (c.title.length > 26) Type.heroTitle.copy(fontSize = 32.sp, lineHeight = 36.sp) else Type.heroTitle,
