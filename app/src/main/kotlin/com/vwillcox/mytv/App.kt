@@ -55,6 +55,8 @@ class App : Application(), SingletonImageLoader.Factory {
         library = Library(this)
         apps = AppRepository(this, scope)
         system = SystemControl(this, apps, store)
+        // A force stop switches the Home button service off along with the app; it comes back the next time myTV runs.
+        if (store.value.overrideHome && system.canWriteSecure && !system.homeServiceOn) system.setHomeService(true)
         installer = Installer(this, http)
         feed = Feed(store, library, Tmdb(http), TvListings(this), apps, scope)
 
