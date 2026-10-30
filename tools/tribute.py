@@ -1,12 +1,12 @@
 """A tribute to Sir Patrick Stewart (13 July 1940 - 28 October 2026), for the LCARS theme's top block.
 
 The Enterprise-D sails away from the camera through the stars, stretches out and goes to warp in a flash where it
-went, then his portrait fades in over the stars and his name comes up under it, in Antonio and the panel colours,
-with an LCARS bar between.
+went. Captain Picard comes up over the stars, the camera pushes in on his face and he dissolves into Patrick Stewart
+himself, then his name comes up under him, in Antonio and the panel colours, with an LCARS bar between.
 
 Usage:
   blender -b --factory-startup --disable-autoexec -P tools/tribute.py -- OUT_DIR \\
-      --model enterprise-d.blend --fonts FONT_DIR --photo tools/tribute-portrait.png \\
+      --model enterprise-d.blend --fonts FONT_DIR --photo tools/tribute-portrait.png --picard tools/tribute-picard.png \\
       [--samples S] [--scale PCT] [--only-frames A,B,...]
 
   --model  the Enterprise-D the Omarchy LCARS-TNG theme uses ("USS Enterprise - NCC-1701-D" by Joachim Bornemann,
@@ -16,6 +16,10 @@ Usage:
   --photo  a cut-out portrait with alpha: tools/tribute-portrait.png is from "Patrick Stewart speaking at the 2019 San
            Diego Comic-Con International" by Gage Skidmore (CC BY-SA 3.0, Wikimedia Commons), cut out with rembg's
            isnet-general-use and faded out at the foot; see licenses/
+  --picard him as Picard, to dissolve from, with alpha: tools/tribute-picard.png is from "Jean-Luc Picard 2.jpg" by
+           Loupeznik (CC BY-SA 3.0, Wikimedia Commons), a collage of a photo of him by Cdt. Patrick Caughey (public
+           domain) and Derek Springer's of the Enterprise-D crew quarters (CC BY-SA 2.0). Cut out the same way and
+           turned 4.1 degrees, so his eyes slope like the portrait's; see licenses/
 
 Frames go to OUT_DIR/frame_####.png. Then, adding bloom (in RGB: blended in YUV, it turns everything purple) and a fade in from black:
 
@@ -48,15 +52,18 @@ SAMPLES = arg("--samples", 64, int)
 SCALE = arg("--scale", 100, int)
 ONLY = [int(x) for x in arg("--only-frames", "").split(",") if x]
 PHOTO = arg("--photo", "")
+PICARD = arg("--picard", "")
 
 FPS = 30
-FRAMES = 600            # 20 s
+FRAMES = 760            # 25 s
 CRUISE_END = 240        # sailing away
 STRETCH = 270           # it starts to draw out ahead of itself
 SNAP = 283              # the rest of it follows into the bow
 FLASH = 284             # gone, in a flash where the bow got to
-PORTRAIT = 305          # his picture starts to come up
-REVEAL = 360            # the words start to come up
+PORTRAIT = 305          # Picard starts to come up
+PUSH = 420              # the camera starts to push in on his face
+DISSOLVE = 478          # he starts to become Patrick Stewart
+REVEAL = 520            # the words start to come up
 K = 9.0                 # how many of its own lengths it's drawn out to
 HALF = 3.21             # half the ship's length
 
@@ -501,10 +508,10 @@ def rise(ob, socket, start, length=50):
     key(socket, [(start, 0.0), (start + length, 1.0)])
 
 
-rip, rip_fade = words("Rip", "R.I.P.", 0.30, 400, srgb(LILAC), -0.33, spacing=1.25)
-name, name_fade = words("Name", "PATRICK STEWART", 0.86, 700, srgb(ORANGE), -0.76, spacing=1.04)
+rest, rest_fade = words("Rest", "REST IN PEACE", 0.30, 400, srgb(LILAC), -0.33, spacing=1.25)
+name, name_fade = words("Name", "SIR PATRICK STEWART", 0.86, 700, srgb(ORANGE), -0.76, spacing=1.04)
 dates, dates_fade = words("Dates", "13 JULY 1940 \u2013 28 OCTOBER 2026", 0.29, 400, srgb(PEACH), -1.48, spacing=1.12)
-rise(rip, rip_fade, REVEAL)
+rise(rest, rest_fade, REVEAL)
 rise(name, name_fade, REVEAL + 32, 60)
 rise(dates, dates_fade, REVEAL + 104)
 
@@ -552,31 +559,96 @@ for s in bar_mats:
     key(s, [(start, 0.0), (start + 10, 1.0)])
 
 # ---------------------------------------------------------------- the portrait
-# A plane above the words giving off the photo's own colours rather than lit, its cut-out's alpha letting the stars
-# through round him.
+# A plane above the words giving off the photos' own colours rather than lit, their cut-outs' alpha letting the stars
+# through round him. Picard first, framed head and shoulders; the camera pushes in until his eyes are on the
+# portrait's, and he dissolves into it. One material does both, mixing the two premultiplied, so the stars don't
+# show through him halfway.
+EYES = (541.5, 644.0, 334.53)               # the portrait's eyes: their middle, and how far apart, in its pixels
+PICARD_EYES = (553.5, 328.5, 123.04)        # and Picard's, in his
+MARGIN = 200                                # the plane's room either side of the portrait for his shoulders
+
+
+def vop(t, kind, a, b):
+    v = t.nodes.new("ShaderNodeVectorMath")
+    v.operation = kind
+    for sock, x in zip(v.inputs, (a, b)):
+        t.links.new(x, sock)
+    return v.outputs[0]
+
+
+def scaled(t, colour, alpha):
+    v = t.nodes.new("ShaderNodeVectorMath")
+    v.operation = "SCALE"
+    t.links.new(colour, v.inputs[0])
+    t.links.new(alpha, v.inputs["Scale"])
+    return v.outputs[0]
+
+
 if PHOTO:
     photo = bpy.data.images.load(PHOTO)
+    W, H = photo.size
     mat = bpy.data.materials.new("Portrait")
     t, out = nodes(mat)
-    coords = t.nodes.new("ShaderNodeTexCoord")
-    tex = t.nodes.new("ShaderNodeTexImage")
-    tex.image = photo
-    tex.interpolation = "Cubic"
-    tex.extension = "CLIP"
-    t.links.new(coords.outputs["Generated"], tex.inputs["Vector"])
+    coords = t.nodes.new("ShaderNodeTexCoord").outputs["Generated"]
+
+    def picture(image, vector):
+        tex = t.nodes.new("ShaderNodeTexImage")
+        tex.image = image
+        tex.interpolation = "Cubic"
+        tex.extension = "CLIP"
+        t.links.new(vector, tex.inputs["Vector"])
+        return tex.outputs["Color"], tex.outputs["Alpha"]
+
+    shown = t.nodes.new("ShaderNodeValue")
+    room = MARGIN if PICARD else 0
+    wide_w = W + 2 * room
+    middle = t.nodes.new("ShaderNodeMapping")
+    middle.vector_type = "POINT"
+    middle.inputs["Scale"].default_value = (wide_w / W, 1.0, 1.0)
+    middle.inputs["Location"].default_value = (-room / W, 0.0, 0.0)
+    t.links.new(coords, middle.inputs["Vector"])
+    colour, alpha = picture(photo, middle.outputs[0])
+    glow, cover = scaled(t, colour, alpha), alpha
+    if PICARD:
+        picard = bpy.data.images.load(PICARD)
+        pw, ph = picard.size
+        frame = t.nodes.new("ShaderNodeMapping")
+        frame.vector_type = "POINT"
+        t.links.new(coords, frame.inputs["Vector"])
+        # Where his eyes sit on the plane, and how far apart, in the portrait's pixels: framed wide, with his
+        # combadge clear of the fade at the foot, then on the portrait's.
+        wide, tight = (EYES[0], 367.0, 1.5 * PICARD_EYES[2]), EYES
+        for f in range(PUSH, PUSH + 76):
+            e = smoothstep(PUSH, PUSH + 75, f)
+            ex, ey = wide[0] + (tight[0] - wide[0]) * e, wide[1] + (tight[1] - wide[1]) * e
+            s = wide[2] * (tight[2] / wide[2]) ** e / PICARD_EYES[2]
+            # From the plane's 0 to 1, up from its foot, to his picture's.
+            ox, oy = ex - s * PICARD_EYES[0], ey - s * PICARD_EYES[1]
+            frame.inputs["Scale"].default_value = (wide_w / (s * pw), H / (s * ph), 1.0)
+            frame.inputs["Location"].default_value = (-(room + ox) / (s * pw), 1 - (H - oy) / (s * ph), 0.0)
+            frame.inputs["Scale"].keyframe_insert("default_value", frame=f)
+            frame.inputs["Location"].keyframe_insert("default_value", frame=f)
+        p_colour, p_alpha = picture(picard, frame.outputs[0])
+        # Faded out at the foot as the portrait is, so pushed in, the uniform doesn't end at the plane's edge.
+        up = t.nodes.new("ShaderNodeSeparateXYZ")
+        t.links.new(coords, up.inputs[0])
+        under = op(t, "MAXIMUM", op(t, "SUBTRACT", 1.0, op(t, "DIVIDE", up.outputs["Y"], 0.2745)), 0.0)
+        p_alpha = op(t, "MULTIPLY", p_alpha, op(t, "MAXIMUM", op(t, "SUBTRACT", 1.0, op(t, "POWER", under, 1.4)), 0.0))
+        become = t.nodes.new("ShaderNodeValue")
+        key(become.outputs[0], [(DISSOLVE, 0.0), (DISSOLVE + 50, 1.0)])
+        p_glow = scaled(t, p_colour, p_alpha)
+        glow = vop(t, "ADD", p_glow, scaled(t, vop(t, "SUBTRACT", glow, p_glow), become.outputs[0]))
+        cover = op(t, "ADD", p_alpha, op(t, "MULTIPLY", op(t, "SUBTRACT", cover, p_alpha), become.outputs[0]))
     em = t.nodes.new("ShaderNodeEmission")
-    t.links.new(tex.outputs["Color"], em.inputs["Color"])
+    t.links.new(glow, em.inputs["Color"])
     # A little under full, as the bloom brightens what's already bright.
-    em.inputs["Strength"].default_value = 0.85
-    shown = t.nodes.new("ShaderNodeMath")
-    shown.operation = "MULTIPLY"
-    t.links.new(tex.outputs["Alpha"], shown.inputs[0])
+    t.links.new(op(t, "MULTIPLY", shown.outputs[0], 0.85), em.inputs["Strength"])
     clear = t.nodes.new("ShaderNodeBsdfTransparent")
-    mix = t.nodes.new("ShaderNodeMixShader")
-    t.links.new(shown.outputs[0], mix.inputs[0])
-    t.links.new(clear.outputs[0], mix.inputs[1])
-    t.links.new(em.outputs[0], mix.inputs[2])
-    t.links.new(mix.outputs[0], out.inputs[0])
+    t.links.new(op(t, "SUBTRACT", 1.0, op(t, "MULTIPLY", cover, shown.outputs[0])), clear.inputs["Color"])
+    both = t.nodes.new("ShaderNodeAddShader")
+    t.links.new(clear.outputs[0], both.inputs[0])
+    t.links.new(em.outputs[0], both.inputs[1])
+    t.links.new(both.outputs[0], out.inputs[0])
     tall = 1.85
     me = bpy.data.meshes.new("Portrait")
     me.from_pydata([(-1, -1, 0), (1, -1, 0), (1, 1, 0), (-1, 1, 0)], [], [(0, 1, 2, 3)])
@@ -584,9 +656,9 @@ if PHOTO:
     portrait = link(bpy.data.objects.new("Portrait", me))
     portrait.parent = cam
     portrait.location = (0.0, 0.82, -DIST)
-    portrait.scale = (tall / 2 * photo.size[0] / photo.size[1], tall / 2, 1)
+    portrait.scale = (tall / 2 * wide_w / H, tall / 2, 1)
     portrait.visible_shadow = False
-    rise(portrait, shown.inputs[1], PORTRAIT, 80)
+    rise(portrait, shown.outputs[0], PORTRAIT, 80)
 
 # ---------------------------------------------------------------- render
 os.makedirs(OUT, exist_ok=True)

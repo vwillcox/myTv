@@ -1,9 +1,24 @@
-"Patrick Stewart speaking at the 2019 San Diego Comic-Con International" by Gage Skidmore, 20 July 2019
-(https://commons.wikimedia.org/wiki/File:Patrick_Stewart_by_Gage_Skidmore_2.jpg)
+The tribute film, app/src/main/res/raw/tribute.mp4 (rendered by tools/tribute.py), shows two photographs of Sir
+Patrick Stewart, each cut out of its background (rembg, isnet-general-use), its edge softened and its foot faded out.
 
-This photograph is licensed under the Creative Commons Attribution-ShareAlike 3.0 Unported License (CC BY-SA 3.0):
-https://creativecommons.org/licenses/by-sa/3.0/
+tools/tribute-portrait.png is from:
 
-Changes: cropped, the background cut away (rembg, isnet-general-use), the edge softened and the foot faded out, as
-tools/tribute-portrait.png. That cut-out, and the film it fades into, app/src/main/res/raw/tribute.mp4 (rendered by
-tools/tribute.py), are adaptations of the photograph and are shared under the same licence, CC BY-SA 3.0.
+  "Patrick Stewart speaking at the 2019 San Diego Comic-Con International" by Gage Skidmore, 20 July 2019
+  (https://commons.wikimedia.org/wiki/File:Patrick_Stewart_by_Gage_Skidmore_2.jpg)
+  Licensed under the Creative Commons Attribution-ShareAlike 3.0 Unported License (CC BY-SA 3.0):
+  https://creativecommons.org/licenses/by-sa/3.0/
+  Changes: cropped as well.
+
+tools/tribute-picard.png, him as Captain Jean-Luc Picard, is from:
+
+  "Jean-Luc Picard 2.jpg" by Loupeznik, 19 October 2011
+  (https://commons.wikimedia.org/wiki/File:Jean-Luc_Picard_2.jpg)
+  Licensed under the Creative Commons Attribution-ShareAlike 3.0 Unported License (CC BY-SA 3.0):
+  https://creativecommons.org/licenses/by-sa/3.0/
+  It is a collage of "PatrickStewart2004-08-03.jpg" by Cdt. Patrick Caughey, U.S. Army, 3 August 2004 (public domain)
+  and "Enterprise-D crew quarters.jpg" by Derek Springer, 9 February 2008 (CC BY-SA 2.0,
+  https://creativecommons.org/licenses/by-sa/2.0/).
+  Changes: padded and turned 4.1 degrees as well.
+
+Both cut-outs, and the film they appear in, are adaptations of these works and are shared under the same licence,
+CC BY-SA 3.0.
