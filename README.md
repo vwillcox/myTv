@@ -13,6 +13,9 @@ myTV is a native Android TV launcher in Kotlin and Compose. It's built for the r
 - **Apps**: launches, installs (an APK upload or URL from the phone setup page) and opens the Play Store.
 - **The Home button**: takes it back from Google TV with an accessibility service. A press opens myTV and a long press
   opens its settings.
+- **The app buttons**: Google TV can't open apps from the remote's buttons once another app is the home screen, so the
+  same service does. YouTube opens YouTube, Netflix opens AllMedia and ★ opens Railcam. A button whose app isn't
+  installed is left to Google TV.
 - **Screensaver**: sets the screensaver and timeouts, and has its own ambient screensaver.
 
 ## Themes

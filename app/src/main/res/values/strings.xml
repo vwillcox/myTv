@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name">myTV</string>
     <string name="home_service_label">myTV Home button</string>
-    <string name="home_service_description">Brings myTV up when the Home button is pressed, in place of the Google TV home screen. It reads no text and sees no other keys.</string>
+    <string name="home_service_description">Brings myTV up when the Home button is pressed, in place of the Google TV home screen, and opens YouTube, AllMedia and Railcam from the remote\'s YouTube, Netflix and star buttons. It reads no text and acts on no other keys.</string>
     <string name="dream_name">myTV Ambient</string>
     <string name="dream_description">Artwork from your own library, with the time.</string>
 </resources>
