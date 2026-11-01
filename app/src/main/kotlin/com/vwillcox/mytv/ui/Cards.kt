@@ -97,10 +97,13 @@ internal fun GoogleCardFace(card: MediaCard, width: Dp, showText: Boolean, focus
     val scale by animateFloatAsState(if (focused) 1.08f else 1f, tween(160), label = "scale")
     val tones = LocalTones.current
     val shape = RoundedCornerShape(Size.corner)
+    // With colour from the picture, the focused card glows in its own.
+    val glow = rememberGlow(card, focused)
     Column(modifier.width(width)) {
         Box(
             Modifier.size(width, width * 9 / 16)
                 .focusRing(focused, scale, Size.corner)
+                .then(if (glow != null) Modifier.glow(glow.first, glow.second, Size.corner) else Modifier)
                 .then(control)
                 .clip(shape)
                 .background(tones.surface),
@@ -148,8 +151,12 @@ fun TileView(card: MediaCard, width: Dp, onClick: () -> Unit) {
 internal fun GoogleTileFace(card: MediaCard, width: Dp, focused: Boolean, control: Modifier) {
     val scale by animateFloatAsState(if (focused) 1.08f else 1f, tween(160), label = "scale")
     val tones = LocalTones.current
+    // A tile shows its colour, not its picture, so it glows in that.
+    val glow = rememberGlow(null, Color(Feed.tint(card.title)), focused)
     Box(
-        Modifier.size(width, width * 9 / 16).focusRing(focused, scale, Size.corner).then(control)
+        Modifier.size(width, width * 9 / 16).focusRing(focused, scale, Size.corner)
+            .then(if (glow != null) Modifier.glow(glow.first, glow.second, Size.corner) else Modifier)
+            .then(control)
             .clip(RoundedCornerShape(Size.corner))
             .background(Brush.linearGradient(listOf(Color(Feed.tint(card.title)), Color(Feed.tint(card.title)).copy(alpha = 0.55f)))),
         Alignment.BottomStart,

@@ -47,6 +47,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
@@ -121,22 +125,37 @@ class HomeUi {
 internal fun GoogleFrame(f: HomeFrame) {
     val ui = f.ui
     val glass = rememberHazeState()
-    Box(Modifier.fillMaxSize()) {
-        BackgroundLayer(f.look, ui.focusedArt, Modifier.hazeSource(glass, zIndex = 0f))
-        Box(Modifier.fillMaxSize().focusRequester(ui.main).focusRestorer().focusGroup()) {
-            f.content(Modifier.hazeSource(glass, zIndex = 1f))
-            if (ui.grid == null) {
-                Box(Modifier.focusProperties { down = ui.entry }.onFocusChanged { f.onNavFocus(it.hasFocus) }) {
-                    CompositionLocalProvider(LocalGlass provides glass) { TopBar(ui, f.avatar, f.userName, f.look, f.onTab) }
+    val frame = @Composable {
+        Box(Modifier.fillMaxSize()) {
+            BackgroundLayer(f.look, ui.focusedArt, Modifier.hazeSource(glass, zIndex = 0f))
+            Box(Modifier.fillMaxSize().focusRequester(ui.main).focusRestorer().focusGroup()) {
+                f.content(Modifier.hazeSource(glass, zIndex = 1f))
+                if (ui.grid == null) {
+                    Box(Modifier.focusProperties { down = ui.entry }.onFocusChanged { f.onNavFocus(it.hasFocus) }) {
+                        CompositionLocalProvider(LocalGlass provides glass) { TopBar(ui, f.avatar, f.userName, f.look, f.onTab) }
+                    }
                 }
             }
         }
     }
+    if (!f.look.ambient) return frame()
+    // The screen takes its colours from the title in the banner, on the tabs that have one.
+    ProvideAmbience({ ui.spotlight?.takeIf { !ui.searching && ui.tab != Tab.APPS && ui.grid == null }?.let { it.backdrop ?: it.image } }, frame)
 }
 
 /** The bar across the top: who's watching, the tabs and the settings, each group a pill of frosted glass. */
 @Composable
 fun TopBar(ui: HomeUi, avatar: String?, userName: String?, look: Look, onTab: (Tab?) -> Unit) {
+    val lit = LocalAmbience.current?.target?.glow
+    if (lit != null) {
+        val tones = LocalTones.current
+        val lifted = tones.copy(accent = lerp(lit, Color.White, 0.6f), onAccent = lerp(lit, Color.Black, 0.82f))
+        CompositionLocalProvider(LocalTones provides lifted) { TopBarContent(ui, avatar, userName, look, onTab) }
+    } else TopBarContent(ui, avatar, userName, look, onTab)
+}
+
+@Composable
+private fun TopBarContent(ui: HomeUi, avatar: String?, userName: String?, look: Look, onTab: (Tab?) -> Unit) {
     val tones = LocalTones.current
     val glass = LocalGlass.current
     val hidden by animateFloatAsState(if (ui.scrolled > 0.02f) 1f else 0f, tween(220), label = "bar")
@@ -273,14 +292,32 @@ fun HeroBackdrop(card: MediaCard?, scrolled: Float) = LocalSkin.current.HeroBack
 @Composable
 internal fun GoogleHeroBackdrop(card: MediaCard?, scrolled: Float) {
     val tones = LocalTones.current
+    val ambience = LocalAmbience.current
     Box(Modifier.fillMaxSize().graphicsLayer { alpha = (1f - scrolled * 1.6f).coerceIn(0f, 1f) }) {
         Crossfade(card?.let { it.backdrop ?: it.image }, animationSpec = tween(700), label = "hero") { url ->
             if (url != null) AsyncImage(url, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alignment = Alignment.TopEnd)
         }
-        // Dark from the left for the words and from the bottom for the rows, as Google TV does.
-        Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(0f to tones.bg.copy(alpha = 0.92f), 0.45f to tones.bg.copy(alpha = 0.55f), 0.8f to Color.Transparent)))
-        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to tones.bg.copy(alpha = 0.55f), 0.18f to Color.Transparent, 0.55f to Color.Transparent, 0.86f to tones.bg)))
+        if (ambience == null) {
+            // Dark from the left for the words and from the bottom for the rows, as Google TV does.
+            Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(0f to tones.bg.copy(alpha = 0.92f), 0.45f to tones.bg.copy(alpha = 0.55f), 0.8f to Color.Transparent)))
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to tones.bg.copy(alpha = 0.55f), 0.18f to Color.Transparent, 0.55f to Color.Transparent, 0.86f to tones.bg)))
+        } else Box(Modifier.fillMaxSize().drawBehind { ambientScrims(ambience, tones.bg) })
     }
+}
+
+/**
+ * The banner's dark in the picture's own colour: deepest at the foot, where the rows are, and under the words; and
+ * under the picture, its light falling across the rows, leaving the picture itself as it is.
+ */
+private fun DrawScope.ambientScrims(ambience: Ambience, bg: Color) {
+    val deep = ambience.deep
+    val glow = ambience.glow
+    drawRect(Brush.horizontalGradient(0f to deep.copy(alpha = 0.94f), 0.45f to deep.copy(alpha = 0.6f), 0.8f to Color.Transparent))
+    drawRect(Brush.verticalGradient(0f to deep.copy(alpha = 0.5f), 0.18f to Color.Transparent, 0.5f to Color.Transparent, 0.84f to deep, 1f to lerp(deep, bg, 0.5f)))
+    drawRect(Brush.radialGradient(
+        0f to glow.copy(alpha = 0.13f * glow.alpha), 1f to Color.Transparent,
+        center = Offset(size.width * 0.5f, size.height * 1.02f), radius = size.width * 0.58f,
+    ))
 }
 
 /** The words over the banner: where it's from, the title (as its logo when there is one), and a line about it. */

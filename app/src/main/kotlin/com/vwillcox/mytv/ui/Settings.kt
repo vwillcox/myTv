@@ -258,6 +258,13 @@ private fun Page(ui: HomeUi, id: String, cfg: Config, feed: FeedState, all: List
             // Other themes have colours of their own.
             if (cfg.look.theme == ThemeId.GOOGLE_TV) {
                 item { PanelHeading("Highlight colour") }
+                item {
+                    PanelToggle(
+                        "Colour from the picture",
+                        "The screen takes on the colours of the title in the banner, and the card you're on glows in its own. The highlight below is for everything else.",
+                        cfg.look.ambient,
+                    ) { on -> store.update { it.copy(look = it.look.copy(ambient = on)) } }
+                }
                 for ((name, c) in Accents) item("a$name") { PanelChoice(name, selected = cfg.look.accent == c) { store.update { it.copy(look = it.look.copy(accent = c)) } } }
             }
             item { PanelHeading("Clock") }

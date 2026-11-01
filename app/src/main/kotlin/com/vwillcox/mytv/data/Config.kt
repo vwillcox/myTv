@@ -121,6 +121,11 @@ data class Look(
      * beneath it. Off, it shows only Top picks and scrolls away with the rows, as on Google TV.
      */
     val immersive: Boolean = true,
+    /**
+     * The screen takes its colours from the title in the banner: the dark under the words and rows is washed in it,
+     * and the open tab lit with it, and the focused card glows in its own picture's colour. Google TV's look only.
+     */
+    val ambient: Boolean = true,
 )
 
 @Serializable

@@ -8,6 +8,10 @@ myTV is a native Android TV launcher in Kotlin and Compose. It's built for the r
 - **A banner that follows focus**: whatever you move to, in any row, fills the top of the screen with its picture,
   details, summary and which episode it is, and the rows slide up beneath it. Settings → Look and background →
   Banner switches it off for Google TV's own page, where the banner scrolls away with the rows.
+- **Colour from the picture**: the screen takes on the colours of the title in the banner. The dark under the words
+  and the rows is washed in it, the open tab is lit with it, and the card you're on glows in its own picture's colour.
+  Each picture's colours are worked out once, from a thumbnail. Settings → Look and background → Colour from the
+  picture switches it off. Google TV's look only; LCARS keeps its own colours.
 - **Search made for the remote**: a keyboard on the screen, and beside it what's found as each key is pressed. The
   library's titles are kept on the TV, so there's no wait, and keys that can't lead to any title or app go dark.
   Holding Delete clears, a keyboard plugged into the TV types wherever focus is, and with nothing typed the library is
