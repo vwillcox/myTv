@@ -23,6 +23,10 @@ myTV is a native Android TV launcher in Kotlin and Compose. It's built for the r
 - **The app buttons**: Google TV can't open apps from the remote's buttons once another app is the home screen, so the
   same service does. YouTube opens YouTube, Netflix opens AllMedia and ★ opens Railcam. A button whose app isn't
   installed is left to Google TV.
+- **Switching input**: Home and the app buttons put the TV on the Streamer's HDMI input with HDMI-CEC, as Google TV's
+  own buttons do. Android lets only system apps send CEC, so myTV connects to the Streamer's own network debugging and
+  runs `cmd hdmi_control onetouchplay`. The first time, the TV asks whether to allow it: tick Always allow. Network
+  debugging has to stay on. Settings → Home button switches it off.
 - **Screensaver**: sets the screensaver and timeouts, and has its own ambient screensaver.
 
 ## Themes
@@ -86,7 +90,7 @@ The Enterprise-D in both films is "USS Enterprise - NCC-1701-D" by Joachim Borne
 model itself isn't included here, only renders of it. `tools/tribute.py` is the Blender scene that renders the tribute.
 
 The libraries, which Gradle downloads and this repository doesn't include, are under their own licences: AndroidX,
-Compose, Media3, OkHttp, Coil, Haze, ZXing and kotlinx under Apache 2.0, and NanoHTTPD under BSD 3-Clause.
+Compose, Media3, OkHttp, Coil, Haze, ZXing, dadb and kotlinx under Apache 2.0, and NanoHTTPD under BSD 3-Clause.
 
 ## Star Trek, LCARS and Paramount
 

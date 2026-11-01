@@ -77,6 +77,8 @@ dependencies {
     // The frosted glass of the top bar: the page behind it, blurred.
     implementation(libs.haze)
     implementation(libs.haze.blur)
+    // An adb client, to reach the TV's own network debugging for HDMI-CEC (see InputSwitch).
+    implementation(libs.dadb)
     // The films the LCARS theme hides in its frame.
     implementation(libs.media3.exoplayer)
 }

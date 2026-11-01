@@ -16,6 +16,9 @@ import com.vwillcox.mytv.app
  * own launcher, and once another app is the default home Android blocks those starts, so the buttons did nothing.
  * An accessibility service is allowed to start activities, so the apps are opened here instead.
  *
+ * Google TV also puts the TV on this box's HDMI input when its buttons are pressed. Taking them loses that, so each
+ * press here asks [InputSwitch] to do it, Home included.
+ *
  * If anything still brings up the Google TV home screen (an app that "goes home" by starting it, say), the window
  * change is seen here and myTV is put in front of it.
  */
@@ -28,7 +31,7 @@ class HomeButtonService : AccessibilityService() {
         AppButtons[event.keyCode]?.let { return appButton(event, it) }
         if (event.keyCode != KeyEvent.KEYCODE_HOME || !app.store.value.overrideHome) return false
         when (event.action) {
-            KeyEvent.ACTION_DOWN -> if (event.repeatCount == 0) downAt = event.eventTime
+            KeyEvent.ACTION_DOWN -> if (event.repeatCount == 0) { downAt = event.eventTime; switchInput() }
             KeyEvent.ACTION_UP -> if (!event.isCanceled) home(longPress = event.eventTime - downAt > LONG_PRESS_MS)
         }
         // Both halves are kept from the system, or it would see a press that never ends and open its own panel.
@@ -43,10 +46,15 @@ class HomeButtonService : AccessibilityService() {
     private fun appButton(event: KeyEvent, pkg: String): Boolean {
         val key = event.keyCode
         when (event.action) {
-            KeyEvent.ACTION_DOWN -> if (event.repeatCount == 0 && launchable(pkg)) taken += key
+            KeyEvent.ACTION_DOWN -> if (event.repeatCount == 0 && launchable(pkg)) { taken += key; switchInput() }
             KeyEvent.ACTION_UP -> return taken.remove(key).also { if (it && !event.isCanceled) app.apps.launch(pkg) }
         }
         return key in taken
+    }
+
+    /** Started as the press goes down, since the switch takes a second or so. */
+    private fun switchInput() {
+        if (app.store.value.switchInput) app.inputSwitch.switchHere()
     }
 
     private fun launchable(pkg: String) =

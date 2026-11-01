@@ -9,6 +9,7 @@ import com.vwillcox.mytv.data.Library
 import com.vwillcox.mytv.data.Tmdb
 import com.vwillcox.mytv.data.TvListings
 import com.vwillcox.mytv.data.baseHttpClient
+import com.vwillcox.mytv.system.InputSwitch
 import com.vwillcox.mytv.system.Installer
 import com.vwillcox.mytv.system.SystemControl
 import coil3.ImageLoader
@@ -45,6 +46,8 @@ class App : Application(), SingletonImageLoader.Factory {
         private set
     lateinit var installer: Installer
         private set
+    lateinit var inputSwitch: InputSwitch
+        private set
 
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -58,6 +61,7 @@ class App : Application(), SingletonImageLoader.Factory {
         // A force stop switches the Home button service off along with the app; it comes back the next time myTV runs.
         if (store.value.overrideHome && system.canWriteSecure && !system.homeServiceOn) system.setHomeService(true)
         installer = Installer(this, http)
+        inputSwitch = InputSwitch(this, scope)
         feed = Feed(store, library, Tmdb(http), TvListings(this), apps, scope)
 
         // The settings that change what the rows hold, rather than how they look, rebuild them.

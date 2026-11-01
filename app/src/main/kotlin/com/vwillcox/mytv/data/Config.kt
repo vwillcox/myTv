@@ -150,6 +150,8 @@ data class Config(
     val popular: Popularity = Popularity(),
     /** Takes the Home button from Google TV, when the Home button service is on. */
     val overrideHome: Boolean = true,
+    /** Puts the TV on this box's HDMI input when Home or an app button is pressed, through network debugging. */
+    val switchInput: Boolean = true,
     /** Cards taken off the home screen by hand, by [MediaCard.key]. */
     val dismissed: Set<String> = emptySet(),
     /** Channels of allowed apps that are kept off the home screen anyway, by [channelKey]. */

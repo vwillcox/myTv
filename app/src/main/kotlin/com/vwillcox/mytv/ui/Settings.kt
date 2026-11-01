@@ -315,12 +315,19 @@ private fun Page(ui: HomeUi, id: String, cfg: Config, feed: FeedState, all: List
             val on = remember(tick) { sys.homeServiceOn }
             val context = LocalContext.current
             LaunchedEffect(Unit) { while (true) { delay(1500); tick++ } }
-            SidePanel("Home button", "Google TV keeps the Home button for itself. The Home button service takes it back: a press opens this home screen, a long press opens these settings. It also opens YouTube, AllMedia and Railcam from the YouTube, Netflix and ★ buttons.", key = key) {
+            SidePanel("Home button", "Google TV keeps the Home button for itself. The Home button service takes it back: a press opens this home screen, a long press opens these settings. It also opens YouTube, AllMedia and Railcam from the YouTube, Netflix and ★ buttons, and each of these buttons puts the TV on this input.", key = key) {
                 item { PanelToggle("Home button opens ${cfg.look.brand.ifBlank { "myTV" }}", if (on) "The service is on" else "The service is off", cfg.overrideHome && on) { want ->
                     store.update { it.copy(overrideHome = want) }
                     if (want && !on && !sys.setHomeService(true)) sys.openSystem(SystemPages.first { it.label == "Accessibility" })
                     tick++
                 } }
+                item {
+                    val input by app.inputSwitch.state.collectAsState()
+                    PanelToggle("Switch the TV to this input", if (cfg.switchInput) input.text else "Off", cfg.switchInput) { want ->
+                        store.update { it.copy(switchInput = want) }
+                        if (want) app.inputSwitch.switchHere()
+                    }
+                }
                 item {
                     PanelItem("Make this the default home app", "So Back from an app comes here", Icons.Rounded.Home) {
                         val rm = context.getSystemService(RoleManager::class.java)
