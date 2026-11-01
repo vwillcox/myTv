@@ -50,13 +50,18 @@ internal enum class Reel(val video: Int, val loop: Boolean) {
 @Stable
 internal class Reels {
     var showing by mutableStateOf<Reel?>(null)
-    var navFocused by mutableStateOf(false)
+    /**
+     * Whether focus was last in the upright rather than the screen beside it or a panel. It changes only when focus
+     * lands somewhere, so it holds while focus is on its way from Search to the LCARS block, which is outside the
+     * upright: going by whether the upright has focus, the block would turn focus away in the moment between.
+     */
+    var fromNav by mutableStateOf(false)
     var topFocused by mutableStateOf(false)
     val top = FocusRequester()
     val aft = FocusRequester()
 
     /** Only from the upright, so Up from the screen's top row and Down from its last don't stumble on them. */
-    val reachable get() = navFocused || topFocused || showing != null
+    val reachable get() = fromNav || topFocused || showing != null
 
     fun from(reel: Reel) = if (reel == Reel.TRIBUTE) top else aft
 }

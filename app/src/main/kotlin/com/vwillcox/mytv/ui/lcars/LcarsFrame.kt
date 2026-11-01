@@ -103,11 +103,11 @@ internal fun LcarsFrame(f: HomeFrame) {
         if (boot.value < 1f) { sounds.boot(); boot.animateTo(1f, tween(1400, easing = LinearEasing)) }
     }
     val reels = remember { Reels() }
-    LaunchedEffect(f.ui.resets, f.ui.panels.size) { reels.showing = null }
+    LaunchedEffect(f.ui.resets, f.ui.panels.size) { reels.showing = null; if (f.ui.panels.isNotEmpty()) reels.fromNav = false }
     Box(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize().background(Color.Black).padding(horizontal = 22.dp, vertical = 14.dp)) {
             Column(Modifier.fillMaxSize()) {
-                Header(f.look, boot, reels, Modifier.fillMaxWidth().height(HeaderHeight))
+                Header(f.look, boot, reels, f.ui.tabs.getValue("search"), Modifier.fillMaxWidth().height(HeaderHeight))
                 Spacer(Modifier.height(6.dp))
                 Main(f, boot, reels, Modifier.fillMaxWidth().weight(1f))
             }
@@ -120,7 +120,7 @@ internal fun LcarsFrame(f: HomeFrame) {
 }
 
 @Composable
-private fun Header(look: Look, boot: Boot, reels: Reels, modifier: Modifier) {
+private fun Header(look: Look, boot: Boot, reels: Reels, search: FocusRequester, modifier: Modifier) {
     val now by produceState(System.currentTimeMillis()) {
         while (true) { value = System.currentTimeMillis(); delay(60_000 - value % 60_000) }
     }
@@ -143,7 +143,7 @@ private fun Header(look: Look, boot: Boot, reels: Reels, modifier: Modifier) {
                 ))
             }
         }
-        TopBlock(reels, Modifier.width(Side).height(30.dp), boot.part(0.15f, 0.3f))
+        TopBlock(reels, search, Modifier.width(Side).height(30.dp), boot.part(0.15f, 0.3f))
         BlockLabel(code(look.brand + "deck"), Modifier.width(Side).height(HeaderHeight), boot.part(0.2f, 0.35f))
         Row(
             Modifier.fillMaxSize().padding(start = Side + 30.dp, bottom = Arm + 5.dp)
@@ -175,17 +175,17 @@ private fun BlockLabel(text: String, modifier: Modifier, alpha: Float) {
 }
 
 /**
- * The block at the very top, labelled LCARS. Up from Search reaches it, and OK on it plays the tribute. Like the
- * upright's blocks, it flashes and lights when focused.
+ * The block at the very top, labelled LCARS. Up from Search reaches it, and OK on it plays the tribute; Down goes
+ * back to [search]. Like the upright's blocks, it flashes and lights when focused.
  */
 @Composable
-private fun TopBlock(reels: Reels, modifier: Modifier, alpha: Float) {
+private fun TopBlock(reels: Reels, search: FocusRequester, modifier: Modifier, alpha: Float) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
     val flash by rememberFlash(focused)
     Box(
         modifier.focusRequester(reels.top)
-            .focusProperties { canFocus = reels.reachable; left = FocusRequester.Cancel; right = FocusRequester.Cancel; up = FocusRequester.Cancel }
+            .focusProperties { canFocus = reels.reachable; left = FocusRequester.Cancel; right = FocusRequester.Cancel; up = FocusRequester.Cancel; down = search }
             .onFocusChanged { reels.topFocused = it.isFocused }
             .tvClickable(interaction) { reels.showing = Reel.TRIBUTE }
             .drawBehind { if (focused) drawRect(lerp(Lcars.BlueBell.dim(0.4f), Lcars.Lit, flash)) },
@@ -259,6 +259,7 @@ private fun Main(f: HomeFrame, boot: Boot, reels: Reels, modifier: Modifier) {
             Box(
                 Modifier.fillMaxSize().padding(start = Side + Inset, top = Arm + 8.dp, bottom = BottomArm + 8.dp).clipToBounds()
                     .graphicsLayer { alpha = boot.part(0.55f, 1f) }
+                    .onFocusChanged { if (it.hasFocus) reels.fromNav = false }
                     // On Google TV the tabs are above everything, so Up from the top of a screen reaches them. Here
                     // they're beside it, so Up with nowhere left to go is taken there.
                     .onKeyEvent { e ->
@@ -329,13 +330,15 @@ private fun Nav(f: HomeFrame, boot: Boot, reels: Reels, modifier: Modifier) {
             .focusProperties {
                 onEnter = { if (requestedFocusDirection != FocusDirection.Enter) runCatching { ui.selectedTab.requestFocus() } }
             }
-            .onFocusChanged { f.onNavFocus(it.hasFocus); reels.navFocused = it.hasFocus }
+            .onFocusChanged { f.onNavFocus(it.hasFocus); if (it.hasFocus) reels.fromNav = true }
             .focusGroup(),
         verticalArrangement = Arrangement.spacedBy(Slice),
     ) {
         var i = 0
         fun appear() = (i++).let { n -> Modifier.graphicsLayer { alpha = boot.part(0.15f + n * 0.05f, 0.25f + n * 0.05f) } }
-        TabBlock("Search", Lcars.BlueBell, 38.dp, ui.searching, ui.tabs.getValue("search"), entry, appear()) { f.onTab(null) }
+        // Up from Search is the LCARS block's, named outright: left to the layout, the search box (higher on the
+        // screen than Search, and nearer than the block) would take it whenever search is open.
+        TabBlock("Search", Lcars.BlueBell, 38.dp, ui.searching, ui.tabs.getValue("search"), entry, appear(), above = reels.top) { f.onTab(null) }
         for (t in Tab.entries) {
             TabBlock(t.label, TabColours.getValue(t), 38.dp, !ui.searching && ui.tab == t, ui.tabs.getValue(t.name), entry, appear()) { f.onTab(t) }
         }
@@ -349,14 +352,17 @@ private fun Nav(f: HomeFrame, boot: Boot, reels: Reels, modifier: Modifier) {
 private val TabColours = mapOf(Tab.HOME to Lcars.Peach, Tab.MOVIES to Lcars.Tangerine, Tab.SHOWS to Lcars.Periwinkle, Tab.APPS to Lcars.Sunflower)
 
 @Composable
-private fun TabBlock(label: String, colour: Color, height: Dp, selected: Boolean, requester: FocusRequester, entry: FocusRequester?, modifier: Modifier, onFocus: () -> Unit) {
+private fun TabBlock(
+    label: String, colour: Color, height: Dp, selected: Boolean, requester: FocusRequester, entry: FocusRequester?, modifier: Modifier,
+    above: FocusRequester? = null, onFocus: () -> Unit,
+) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
     val sounds = LocalSounds.current
     LaunchedEffect(focused) {
         if (focused) { sounds.tab(); delay(160); onFocus() }
     }
-    Block(label, colour, height, selected, focused, modifier.focusRequester(requester).focusProperties { entry?.let { right = it } }.tvClickable(interaction) { onFocus() })
+    Block(label, colour, height, selected, focused, modifier.focusRequester(requester).focusProperties { entry?.let { right = it }; above?.let { up = it } }.tvClickable(interaction) { onFocus() })
 }
 
 @Composable
