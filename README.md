@@ -8,6 +8,10 @@ myTV is a native Android TV launcher in Kotlin and Compose. It's built for the r
 - **A banner that follows focus**: whatever you move to, in any row, fills the top of the screen with its picture,
   details, summary and which episode it is, and the rows slide up beneath it. Settings → Look and background →
   Banner switches it off for Google TV's own page, where the banner scrolls away with the rows.
+- **Search made for the remote**: a keyboard on the screen, and beside it what's found as each key is pressed. The
+  library's titles are kept on the TV, so there's no wait, and keys that can't lead to any title or app go dark.
+  Holding Delete clears, a keyboard plugged into the TV types wherever focus is, and with nothing typed the library is
+  there to browse, best rated first. The globe asks Google TV, which searches every service.
 - **Your library** from AllMedia, through its signature-protected provider. myTV shows its rows and opens titles in
   AllMedia by their `allmedia://` links.
 - **Who's watching**: choose one of AllMedia's people, and AllMedia plays as them.

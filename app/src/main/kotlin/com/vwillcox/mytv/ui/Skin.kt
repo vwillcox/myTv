@@ -63,8 +63,15 @@ interface Skin {
     /** Search's box round its text [field], with [placeholder] while nothing's typed. */
     @Composable fun SearchFace(focused: Boolean, placeholder: String?, field: @Composable () -> Unit)
 
-    /** A button with only an icon, like search's microphone. */
-    @Composable fun ButtonFace(icon: ImageVector, label: String, focused: Boolean, control: Modifier)
+    /**
+     * A key of search's keyboard, sized by [modifier]: a letter or digit as its [label], or an [icon] (with [label]
+     * for a skin with room to spell it, when [wide]). Keys in one [group] (a row) belong together; [first] and [last]
+     * are the ends of a row. An unlit key can't lead to anything, though it still types.
+     */
+    @Composable fun KeyFace(
+        label: String, icon: ImageVector?, wide: Boolean, group: Int, lit: Boolean, first: Boolean, last: Boolean,
+        focused: Boolean, control: Modifier, modifier: Modifier,
+    )
 
     /** A side panel: its [group] modifier goes round all of it and its [list] modifier on the list of [content]. */
     @Composable fun PanelFace(title: String, subtitle: String?, group: Modifier, list: Modifier, state: LazyListState, content: LazyListScope.() -> Unit)
@@ -157,7 +164,10 @@ object GoogleTvSkin : Skin {
     @Composable override fun ActionFace(icon: ImageVector, title: String, sub: String, focused: Boolean, control: Modifier) =
         GoogleActionFace(icon, title, sub, focused, control)
     @Composable override fun SearchFace(focused: Boolean, placeholder: String?, field: @Composable () -> Unit) = GoogleSearchFace(focused, placeholder, field)
-    @Composable override fun ButtonFace(icon: ImageVector, label: String, focused: Boolean, control: Modifier) = GoogleButtonFace(icon, label, focused, control)
+    @Composable override fun KeyFace(
+        label: String, icon: ImageVector?, wide: Boolean, group: Int, lit: Boolean, first: Boolean, last: Boolean,
+        focused: Boolean, control: Modifier, modifier: Modifier,
+    ) = GoogleKeyFace(label, icon, lit, focused, control, modifier)
     @Composable override fun PanelFace(title: String, subtitle: String?, group: Modifier, list: Modifier, state: LazyListState, content: LazyListScope.() -> Unit) =
         GooglePanelFace(title, subtitle, group, list, state, content)
     @Composable override fun ItemFace(

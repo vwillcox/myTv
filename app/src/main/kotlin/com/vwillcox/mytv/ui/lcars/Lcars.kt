@@ -165,7 +165,10 @@ object LcarsSkin : Skin {
     @Composable override fun ActionFace(icon: ImageVector, title: String, sub: String, focused: Boolean, control: Modifier) =
         LcarsActionFace(icon, title, sub, focused, control)
     @Composable override fun SearchFace(focused: Boolean, placeholder: String?, field: @Composable () -> Unit) = LcarsSearchFace(focused, placeholder, field)
-    @Composable override fun ButtonFace(icon: ImageVector, label: String, focused: Boolean, control: Modifier) = LcarsButtonFace(icon, label, focused, control)
+    @Composable override fun KeyFace(
+        label: String, icon: ImageVector?, wide: Boolean, group: Int, lit: Boolean, first: Boolean, last: Boolean,
+        focused: Boolean, control: Modifier, modifier: Modifier,
+    ) = LcarsKeyFace(label, icon, wide, group, lit, first, last, focused, control, modifier)
     @Composable override fun PanelFace(title: String, subtitle: String?, group: Modifier, list: Modifier, state: LazyListState, content: LazyListScope.() -> Unit) =
         LcarsPanelFace(title, subtitle, group, list, state, content)
     @Composable override fun ItemFace(

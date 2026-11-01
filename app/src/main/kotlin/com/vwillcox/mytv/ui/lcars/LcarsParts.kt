@@ -365,7 +365,7 @@ internal fun LcarsActionFace(icon: ImageVector, title: String, sub: String, focu
 internal fun LcarsSearchFace(focused: Boolean, placeholder: String?, field: @Composable () -> Unit) {
     val flash by rememberFlash(focused)
     val cap = if (focused) lerp(Lcars.Orange.dim(0.4f), Lcars.Lit, flash) else Lcars.Orange
-    Row(Modifier.width(400.dp).height(52.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().height(52.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.width(56.dp).fillMaxHeight().clip(RoundedCornerShape(topStart = 26.dp, bottomStart = 26.dp)).background(cap), Alignment.Center) {
             Icon(Icons.Rounded.Search, null, tint = Color.Black, modifier = Modifier.padding(start = 6.dp).size(24.dp))
         }
@@ -384,18 +384,34 @@ internal fun LcarsSearchFace(focused: Boolean, placeholder: String?, field: @Com
     }
 }
 
-/** A button with an icon as an LCARS capsule, labelled. */
+/** The keypad's rows, each in a colour of its own, the way a panel's banks of buttons are. */
+private val KeyRows = listOf(Lcars.Peach, Lcars.Orange, Lcars.Lilac, Lcars.BlueBell, Lcars.Tangerine, Lcars.Sunflower, Lcars.Periwinkle)
+
+/**
+ * A key as an LCARS button: a block in its row's colour, the ends of each row rounded off, its label in black at its
+ * foot. A key that leads nowhere is an unlit panel, its label dimmed; focus lights it after the usual flash.
+ */
 @Composable
-internal fun LcarsButtonFace(icon: ImageVector, label: String, focused: Boolean, control: Modifier) {
+internal fun LcarsKeyFace(
+    label: String, icon: ImageVector?, wide: Boolean, group: Int, lit: Boolean, first: Boolean, last: Boolean,
+    focused: Boolean, control: Modifier, modifier: Modifier,
+) {
     val flash by rememberFlash(focused)
-    val colour = pick(label, listOf(Lcars.Lilac, Lcars.BlueBell, Lcars.Peach))
-    Row(
-        Modifier.height(52.dp).then(control).drawBehind { capsule(if (focused) lerp(colour.dim(0.4f), Lcars.Lit, flash) else colour, Offset.Zero, size) }
-            .padding(horizontal = 18.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    val colour = KeyRows[group % KeyRows.size]
+    Box(
+        modifier.then(control).drawBehind {
+            val fill = when {
+                focused -> lerp(colour.dim(0.4f), Lcars.Lit, flash)
+                lit -> colour
+                else -> colour.dim(0.22f)
+            }
+            capsule(fill, Offset.Zero, size, left = first, right = last)
+        },
+        Alignment.BottomEnd,
     ) {
-        Icon(icon, null, tint = Color.Black, modifier = Modifier.size(22.dp))
-        Spacer(Modifier.width(8.dp))
-        Text(label.uppercase(), style = LcarsText.label, color = Color.Black, maxLines = 1)
+        val ink = if (lit || focused) Color.Black else colour.dim(0.7f)
+        val end = if (last) 14.dp else 6.dp
+        if (icon != null && !wide) Icon(icon, label, tint = ink, modifier = Modifier.align(Alignment.Center).padding(start = if (first) 8.dp else 0.dp, end = if (last) 8.dp else 0.dp).size(20.dp))
+        else Text(label.uppercase(), style = LcarsText.label, color = ink, maxLines = 1, modifier = Modifier.padding(end = end, bottom = 1.dp))
     }
 }

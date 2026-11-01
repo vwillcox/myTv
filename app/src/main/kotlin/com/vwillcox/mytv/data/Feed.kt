@@ -312,6 +312,21 @@ class Feed(
     suspend fun browse(types: String, genre: String?): List<MediaCard> =
         library.items("genre", person, label, mapOf("types" to types, "genre" to genre.orEmpty()), limit = 400)
 
+    /** The library's films and shows for searching as letters are typed, with who they're for and when they came. */
+    private var titleIndex: Triple<String?, Long, List<MediaCard>>? = null
+
+    /**
+     * Every film and show in the library, best rated first, up to [TITLE_LIMIT]: fetched once in a while, so that
+     * search can look through them as each letter is typed. Fewer than [TITLE_LIMIT] is the whole library.
+     */
+    suspend fun titles(): List<MediaCard> {
+        val who = person
+        titleIndex?.let { (p, at, list) -> if (p == who && System.currentTimeMillis() - at < 10 * 60_000) return list }
+        if (library.problem != null) return emptyList()
+        return library.items("toprated", who, label, mapOf("types" to "Movie,Series"), limit = TITLE_LIMIT)
+            .also { titleIndex = Triple(who, System.currentTimeMillis(), it) }
+    }
+
     suspend fun search(query: String): List<MediaCard> =
         if (query.isBlank() || library.problem != null) emptyList()
         else library.items("search", person, label, mapOf("q" to query, "types" to "Movie,Series"), limit = 40)
@@ -325,6 +340,9 @@ class Feed(
     }
 
     companion object {
+        /** The most titles AllMedia gives in one answer. */
+        const val TITLE_LIMIT = 500
+
         /** A steady colour per name, for tiles without pictures. */
         fun tint(name: String): Long {
             val palette = listOf(0xFF3B4A6B, 0xFF5B3A6E, 0xFF2F5D50, 0xFF6B4A2F, 0xFF6B2F3E, 0xFF2F4F6B, 0xFF4A5B2F, 0xFF3F3F6B)
