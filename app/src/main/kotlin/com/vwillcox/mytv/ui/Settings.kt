@@ -263,6 +263,11 @@ private fun Page(ui: HomeUi, id: String, cfg: Config, feed: FeedState, all: List
             item { PanelHeading("Clock") }
             item { PanelToggle("24-hour clock", null, cfg.look.clock24) { on -> store.update { it.copy(look = it.look.copy(clock24 = on)) } } }
             item { PanelHeading("Banner") }
+            item {
+                PanelToggle("Banner follows focus", "Whatever you move to, in any row, fills the top of the screen, and the rows slide up beneath it", cfg.look.immersive) { on ->
+                    store.update { it.copy(look = it.look.copy(immersive = on)) }
+                }
+            }
             for (s in listOf(6, 9, 15, 30)) item("h$s") { PanelChoice("Next title every $s seconds", selected = cfg.look.heroSeconds == s) { store.update { it.copy(look = it.look.copy(heroSeconds = s)) } } }
         }
 

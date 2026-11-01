@@ -116,6 +116,11 @@ data class Look(
     val sounds: Boolean = true,
     /** Panels that flash and readouts that run by themselves, in themes that have them. */
     val motion: Boolean = true,
+    /**
+     * The banner stays at the top of a tab and shows whatever title has focus, in any row, with the rows sliding up
+     * beneath it. Off, it shows only Top picks and scrolls away with the rows, as on Google TV.
+     */
+    val immersive: Boolean = true,
 )
 
 @Serializable

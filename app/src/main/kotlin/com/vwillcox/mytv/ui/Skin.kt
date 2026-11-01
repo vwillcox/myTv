@@ -84,6 +84,11 @@ interface Skin {
 enum class TitleKind {
     /** A row's title, larger while the row has focus. */
     ROW,
+    /**
+     * A row's title under a banner that follows focus. The banner names whatever has focus in big letters, so the
+     * focused row's own title needn't grow as much as a [ROW]'s.
+     */
+    DOCKED_ROW,
     /** "Top picks for you", over the cards under the banner. */
     PICKS,
     /** A heading over part of a grid, like All apps. */

@@ -5,6 +5,9 @@ A Google TV-style home screen for the Google TV Streamer, with an LCARS theme.
 myTV is a native Android TV launcher in Kotlin and Compose. It's built for the remote's D-pad, OK, Back and Home.
 
 - **Home, Movies, Shows and Apps** tabs, frosted glass over a rotating banner, Top picks and round app icons.
+- **A banner that follows focus**: whatever you move to, in any row, fills the top of the screen with its picture,
+  details, summary and which episode it is, and the rows slide up beneath it. Settings → Look and background →
+  Banner switches it off for Google TV's own page, where the banner scrolls away with the rows.
 - **Your library** from AllMedia, through its signature-protected provider. myTV shows its rows and opens titles in
   AllMedia by their `allmedia://` links.
 - **Who's watching**: choose one of AllMedia's people, and AllMedia plays as them.

@@ -270,18 +270,19 @@ private fun Main(f: HomeFrame, boot: Boot, reels: Reels, modifier: Modifier) {
                 f.content(Modifier)
             }
         }
-        SourceTab(ui, boot, Modifier.align(Alignment.TopEnd).padding(top = Arm + Slice))
+        SourceTab(ui, f.look.immersive, boot, Modifier.align(Alignment.TopEnd).padding(top = Arm + Slice))
     }
 }
 
 /**
  * Where the spotlight's title comes from, in a block hanging under the end of the top arm, out of the readout's way.
- * It fades as the page scrolls past the spotlight, and isn't there on screens without one.
+ * It fades as the page scrolls past the spotlight (unless the spotlight follows focus, and so stays), and isn't
+ * there on screens without one.
  */
 @Composable
-private fun SourceTab(ui: HomeUi, boot: Boot, modifier: Modifier) {
+private fun SourceTab(ui: HomeUi, staying: Boolean, boot: Boot, modifier: Modifier) {
     val card = ui.spotlight.takeIf { ui.grid == null && !ui.searching && ui.tab != Tab.APPS }
-    Crossfade(card, modifier.graphicsLayer { alpha = (1f - ui.scrolled) * boot.part(0.55f, 0.75f) }, tween(300), label = "source") { c ->
+    Crossfade(card, modifier.graphicsLayer { alpha = (if (staying) 1f else 1f - ui.scrolled) * boot.part(0.55f, 0.75f) }, tween(300), label = "source") { c ->
         if (c != null) Row(verticalAlignment = Alignment.CenterVertically) {
             Text(code(c.key), style = LcarsText.readout, color = Lcars.Lilac, modifier = Modifier.padding(end = 8.dp))
             Box(Modifier.height(26.dp).background(pick(c.sourceLabel)).padding(start = 16.dp, end = 10.dp), Alignment.CenterEnd) {

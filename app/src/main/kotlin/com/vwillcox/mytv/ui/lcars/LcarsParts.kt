@@ -60,6 +60,7 @@ import coil3.compose.AsyncImage
 import com.vwillcox.mytv.data.Feed
 import com.vwillcox.mytv.data.MediaCard
 import com.vwillcox.mytv.data.TvApp
+import com.vwillcox.mytv.data.episode
 import com.vwillcox.mytv.ui.Size as Sizes
 import com.vwillcox.mytv.ui.TitleKind
 import com.vwillcox.mytv.ui.Type
@@ -75,14 +76,15 @@ internal fun LcarsTitle(text: String, kind: TitleKind, focused: Boolean, modifie
     val time = LocalLcarsTime.current
     val lit by animateFloatAsState(if (focused || kind == TitleKind.PAGE) 1f else 0f, tween(200), label = "header")
     val (fontSize, height, start) = when (kind) {
-        TitleKind.ROW -> Triple(16f + 6f * lit, 26.dp, Sizes.gutter)
+        // A lit header is already a quiet thing beside the readout above it, so under a banner it's the same.
+        TitleKind.ROW, TitleKind.DOCKED_ROW -> Triple(16f + 6f * lit, 26.dp, Sizes.gutter)
         TitleKind.PICKS -> Triple(15f, 22.dp, Sizes.gutter)
         TitleKind.SECTION -> Triple(17f, 24.dp, 10.dp)
         TitleKind.PAGE -> Triple(26f, 32.dp, Sizes.gutter)
     }
     val tone = lerp(colour.dim(0.7f), colour, lit)
     Row(
-        modifier.fillMaxWidth().padding(start = start, end = Sizes.gutter, top = if (kind == TitleKind.SECTION) 8.dp else 0.dp, bottom = if (kind == TitleKind.ROW) 10.dp else 8.dp)
+        modifier.fillMaxWidth().padding(start = start, end = Sizes.gutter, top = if (kind == TitleKind.SECTION) 8.dp else 0.dp, bottom = if (kind == TitleKind.ROW || kind == TitleKind.DOCKED_ROW) 10.dp else 8.dp)
             .height(height),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -113,7 +115,7 @@ internal fun LcarsTitle(text: String, kind: TitleKind, focused: Boolean, modifie
 @Composable
 internal fun LcarsHeroBackdrop(card: MediaCard?, scrolled: Float) {
     Box(Modifier.fillMaxSize().graphicsLayer { alpha = (1f - scrolled * 1.6f).coerceIn(0f, 1f) }) {
-        Crossfade(card?.backdrop, animationSpec = tween(700), label = "viewscreen") { url ->
+        Crossfade(card?.let { it.backdrop ?: it.image }, animationSpec = tween(700), label = "viewscreen") { url ->
             if (url != null) AsyncImage(url, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alignment = Alignment.TopEnd)
         }
         Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(0f to Color.Black, 0.36f to Color.Black.copy(alpha = 0.82f), 0.72f to Color.Transparent)))
@@ -148,6 +150,7 @@ internal fun LcarsHeroInfo(card: MediaCard?, emptyTitle: String, emptyHint: Stri
                 Text(c.title.uppercase(), style = if (c.title.length > 26) Type.heroTitle.copy(fontSize = 32.sp, lineHeight = 36.sp) else Type.heroTitle,
                     color = Lcars.Peach, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
+            c.episode?.let { Text(it.uppercase(), style = Type.heroMeta.copy(fontSize = 18.sp), color = Lcars.Orange, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp)) }
             c.meta?.takeIf { it.isNotBlank() }?.let { meta ->
                 Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                     meta.split(" · ", " • ").filter { it.isNotBlank() }.forEachIndexed { i, part ->

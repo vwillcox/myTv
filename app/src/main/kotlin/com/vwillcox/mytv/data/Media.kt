@@ -48,6 +48,10 @@ data class MediaCard(
     val ids: Set<String> = emptySet(),
 )
 
+/** For an episode, which one it is, from the line under its title without the app: "S7 E2 • A Roulette Wheel". */
+val MediaCard.episode: String?
+    get() = if (kind != Kind.EPISODE) null else subtitle?.removePrefix(sourceLabel)?.removePrefix(" • ")?.trim()?.takeIf { it.isNotEmpty() }
+
 /** A row on a tab. */
 data class Row(
     val key: String,

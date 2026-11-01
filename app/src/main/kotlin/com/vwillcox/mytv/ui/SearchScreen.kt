@@ -117,7 +117,7 @@ fun SearchScreen(ui: HomeUi, all: List<TvApp>, actions: RowActions) {
         }
         if (results.isNotEmpty()) {
             Text("In your library", style = Type.rowSmall, color = tones.dim, modifier = Modifier.padding(start = Size.gutter, top = 16.dp, bottom = 8.dp))
-            CardRow(results, RowStyle.WIDE, focusedRow = true, actions = actions)
+            CardRow(results, RowStyle.WIDE, names = true, actions = actions)
         }
     }
 }

@@ -67,6 +67,7 @@ import com.vwillcox.mytv.data.MediaCard
 import com.vwillcox.mytv.data.Open
 import com.vwillcox.mytv.data.Tab
 import com.vwillcox.mytv.data.TvApp
+import com.vwillcox.mytv.data.episode
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.delay
@@ -87,8 +88,11 @@ class HomeUi {
     var tab by mutableStateOf(Tab.HOME)
     var searching by mutableStateOf(false)
     var spotlight by mutableStateOf<MediaCard?>(null)
-    /** True while focus is on a Top picks card, which stops the banner moving on by itself. */
-    var pickFocused by mutableStateOf(false)
+    /**
+     * True while focus is on a title the banner is showing (in Top picks, or in any row when the banner follows
+     * focus), which stops it moving on by itself.
+     */
+    var titleFocused by mutableStateOf(false)
     /** The backdrop of whatever has focus, for the "artwork" background. */
     var focusedArt by mutableStateOf<String?>(null)
     /** How far the page has scrolled past its top, 0 to 1, which fades the banner and slides the top bar away. */
@@ -270,7 +274,7 @@ fun HeroBackdrop(card: MediaCard?, scrolled: Float) = LocalSkin.current.HeroBack
 internal fun GoogleHeroBackdrop(card: MediaCard?, scrolled: Float) {
     val tones = LocalTones.current
     Box(Modifier.fillMaxSize().graphicsLayer { alpha = (1f - scrolled * 1.6f).coerceIn(0f, 1f) }) {
-        Crossfade(card?.backdrop, animationSpec = tween(700), label = "hero") { url ->
+        Crossfade(card?.let { it.backdrop ?: it.image }, animationSpec = tween(700), label = "hero") { url ->
             if (url != null) AsyncImage(url, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alignment = Alignment.TopEnd)
         }
         // Dark from the left for the words and from the bottom for the rows, as Google TV does.
@@ -294,7 +298,7 @@ internal fun GoogleHeroInfo(card: MediaCard?, emptyTitle: String, emptyHint: Str
                 Text(emptyHint, style = Type.body, color = tones.dim, modifier = Modifier.padding(top = 10.dp))
                 return@Column
             }
-            Text(c.sourceLabel, style = Type.heroMeta, color = tones.dim)
+            Text(listOfNotNull(c.sourceLabel, c.episode).joinToString(" • "), style = Type.heroMeta, color = tones.dim, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(10.dp))
             if (c.logo != null) {
                 AsyncImage(c.logo, c.title, Modifier.heightIn(max = 96.dp).widthIn(max = 380.dp), contentScale = ContentScale.Fit, alignment = Alignment.BottomStart)
